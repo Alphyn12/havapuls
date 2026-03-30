@@ -255,7 +255,7 @@ body {
   background: var(--clr-surface);
   border: 1px solid var(--clr-border);
   border-radius: var(--radius-card);
-  padding: var(--sp-4);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) calc(var(--sp-4) + 10px);
   cursor: pointer;
   transition:
     transform var(--transition),
@@ -1140,6 +1140,255 @@ body {
 .weather-icon-storm    { color: #a78bfa; }
 .weather-icon-fog      { color: #6b7280; }
 .weather-icon-drizzle  { color: #7dd3fc; }
+
+/* ─────────────────────────────────────────────
+   Tema — Light Mode
+───────────────────────────────────────────── */
+
+[data-theme="light"] {
+  --clr-bg:         #f0f4ff;
+  --clr-surface:    #ffffff;
+  --clr-surface-2:  #eef2ff;
+  --clr-accent:     #2563eb;
+  --clr-accent-dim: rgba(37, 99, 235, 0.1);
+  --clr-good:       #059669;
+  --clr-warn:       #d97706;
+  --clr-danger:     #dc2626;
+  --clr-text:       #0f172a;
+  --clr-text-2:     #475569;
+  --clr-text-3:     #94a3b8;
+  --clr-border:     rgba(0, 0, 0, 0.08);
+  --clr-border-2:   rgba(0, 0, 0, 0.14);
+  --shadow-card:    0 4px 24px rgba(0, 0, 0, 0.08);
+  --shadow-modal:   0 24px 64px rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="light"] .form-input,
+[data-theme="light"] .api-key-input {
+  background: #f8faff;
+  color: var(--clr-text);
+}
+
+[data-theme="light"] .family-card {
+  background: var(--clr-surface);
+}
+
+[data-theme="light"] .card-avatar,
+[data-theme="light"] .metric-chip {
+  background: var(--clr-surface-2);
+}
+
+[data-theme="light"] .app-header,
+[data-theme="light"] .detail-header {
+  background: rgba(240, 244, 255, 0.9);
+}
+
+[data-theme="light"] .modal-sheet {
+  background: var(--clr-surface);
+}
+
+/* ─────────────────────────────────────────────
+   Weather Wallpaper — Kart Arka Planları
+───────────────────────────────────────────── */
+
+.family-card.weather-bg-clear::before,
+.family-card.weather-bg-night::before,
+.family-card.weather-bg-cloudy::before,
+.family-card.weather-bg-rain::before,
+.family-card.weather-bg-drizzle::before,
+.family-card.weather-bg-snow::before,
+.family-card.weather-bg-storm::before,
+.family-card.weather-bg-fog::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-card);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.12;
+  transition: opacity 0.4s ease;
+}
+
+.family-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.family-card.weather-bg-clear::before {
+  background: radial-gradient(ellipse at 80% 20%, #fbbf24, transparent 60%);
+  animation: bg-pulse-warm 6s ease-in-out infinite;
+}
+
+.family-card.weather-bg-night::before {
+  background: radial-gradient(ellipse at 70% 20%, #818cf8, transparent 60%);
+  animation: bg-pulse-night 8s ease-in-out infinite;
+}
+
+.family-card.weather-bg-cloudy::before {
+  background: radial-gradient(ellipse at 50% 0%, #94a3b8, transparent 70%);
+}
+
+.family-card.weather-bg-rain::before,
+.family-card.weather-bg-drizzle::before {
+  background: linear-gradient(170deg, #3b82f6 0%, transparent 60%);
+  animation: bg-rain-sweep 3s ease-in-out infinite;
+}
+
+.family-card.weather-bg-snow::before {
+  background: radial-gradient(ellipse at 50% 0%, #bae6fd, transparent 65%);
+  animation: bg-pulse-snow 5s ease-in-out infinite;
+}
+
+.family-card.weather-bg-storm::before {
+  background: linear-gradient(135deg, #7c3aed 0%, transparent 50%);
+  animation: bg-lightning-flicker 4s ease-in-out infinite;
+}
+
+.family-card.weather-bg-fog::before {
+  background: linear-gradient(180deg, #6b7280 0%, transparent 60%);
+  animation: bg-fog-drift 6s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────────
+   Drag-and-Drop
+───────────────────────────────────────────── */
+
+.card-drag-handle {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--clr-text-3);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+  border-radius: var(--radius-chip);
+  z-index: 2;
+  touch-action: none;
+  background: transparent;
+}
+
+.family-card:hover .card-drag-handle,
+.family-card:focus-within .card-drag-handle {
+  opacity: 1;
+}
+
+.card-drag-handle:active   { cursor: grabbing; }
+.card-drag-handle:hover    { color: var(--clr-accent); }
+.card-drag-handle svg      { pointer-events: none; }
+
+.family-card.dragging {
+  opacity: 0.45;
+  transform: scale(1.01);
+  box-shadow: var(--shadow-card);
+  z-index: 10;
+}
+
+.family-card.drag-over {
+  border-color: var(--clr-accent);
+  box-shadow: 0 0 0 2px var(--clr-accent), var(--shadow-card);
+}
+
+/* ─────────────────────────────────────────────
+   Şehir Seçim Listesi
+───────────────────────────────────────────── */
+
+.city-results-list {
+  margin-top: var(--sp-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-inner);
+  overflow: hidden;
+  background: var(--clr-bg);
+  animation: fade-in-up 0.2s ease-out both;
+}
+
+.city-result-item {
+  padding: var(--sp-3) var(--sp-4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  border-bottom: 1px solid var(--clr-border);
+  transition: background var(--transition);
+  min-height: 52px;
+}
+
+.city-result-item:last-child { border-bottom: none; }
+.city-result-item:hover      { background: var(--clr-surface-2); }
+.city-result-item:focus      { outline: 2px solid var(--clr-accent); outline-offset: -2px; }
+
+.city-result-pin { font-size: 1rem; flex-shrink: 0; }
+
+.city-result-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--clr-text);
+  line-height: 1.2;
+}
+
+.city-result-region {
+  font-size: 0.8rem;
+  color: var(--clr-text-2);
+  margin-top: 2px;
+}
+
+/* ─────────────────────────────────────────────
+   24 Saatlik Grafik
+───────────────────────────────────────────── */
+
+.detail-history-chart {
+  padding: 0 var(--sp-4) var(--sp-2);
+  overflow: hidden;
+}
+
+.temp-chart-svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.chart-empty {
+  padding: var(--sp-4);
+  text-align: center;
+  color: var(--clr-text-3);
+  font-size: 0.875rem;
+}
+
+/* ─────────────────────────────────────────────
+   Bildirim Ayarları
+───────────────────────────────────────────── */
+
+.notif-active {
+  background: var(--clr-accent-dim) !important;
+  color: var(--clr-accent) !important;
+  border-color: var(--clr-accent) !important;
+}
+
+/* ─────────────────────────────────────────────
+   Detay Paylaş Butonu
+───────────────────────────────────────────── */
+
+#btn-share-card {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Detail Identity flex grow */
+.detail-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─────────────────────────────────────────────
+   Hava İkonu — Gece (Moon)
+───────────────────────────────────────────── */
+
+.weather-icon-night { color: #a5b4fc; }
 
 /* ─────────────────────────────────────────────
    Responsive — Tablet (768px+)

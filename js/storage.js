@@ -15,6 +15,8 @@ const KEYS = {
   MEMBERS:  'havapuls_members',
   SETTINGS: 'havapuls_settings',
   API_KEY:  'havapuls_ak',
+  THEME:    'havapuls_theme',
+  NOTIF:    'havapuls_notif',
 };
 
 /** @param {number} lat @param {number} lon @returns {string} */
@@ -324,6 +326,54 @@ function deleteAiCache(hash) {
 }
 
 // ─────────────────────────────────────────────
+// Tema
+// ─────────────────────────────────────────────
+
+/**
+ * Kaydedilmiş tema tercihini döner.
+ * @returns {'dark'|'light'}
+ */
+function getTheme() {
+  return lsGet(KEYS.THEME) || 'dark';
+}
+
+/**
+ * Tema tercihini kaydeder.
+ * @param {'dark'|'light'} theme
+ */
+function saveTheme(theme) {
+  lsSet(KEYS.THEME, theme);
+}
+
+// ─────────────────────────────────────────────
+// Bildirim Ayarları
+// ─────────────────────────────────────────────
+
+/**
+ * @typedef {Object} NotificationSettings
+ * @property {boolean} enabled - Bildirimler açık mı?
+ * @property {boolean} morning - Sabah özeti bildirimi
+ * @property {boolean} dressing - Giyinme uyarısı bildirimi
+ */
+
+/**
+ * Bildirim ayarlarını döner.
+ * @returns {NotificationSettings}
+ */
+function getNotificationSettings() {
+  return lsGet(KEYS.NOTIF) || { enabled: false, morning: true, dressing: true };
+}
+
+/**
+ * Bildirim ayarlarını kaydeder.
+ * @param {Partial<NotificationSettings>} updates
+ */
+function saveNotificationSettings(updates) {
+  const current = getNotificationSettings();
+  lsSet(KEYS.NOTIF, { ...current, ...updates });
+}
+
+// ─────────────────────────────────────────────
 // Tüm Verileri Sıfırla
 // ─────────────────────────────────────────────
 
@@ -352,5 +402,7 @@ export {
   getWeatherCache, setWeatherCache,
   getGeoCache, setGeoCache,
   getAiCache, setAiCache, deleteAiCache,
+  getTheme, saveTheme,
+  getNotificationSettings, saveNotificationSettings,
   resetAllData,
 };

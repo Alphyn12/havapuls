@@ -6,8 +6,8 @@
 
 'use strict';
 
-const STATIC_CACHE  = 'havapuls-static-v1';
-const API_CACHE     = 'havapuls-api-v1';
+const STATIC_CACHE  = 'havapuls-static-v2';
+const API_CACHE     = 'havapuls-api-v2';
 const NETWORK_TIMEOUT = 5000; // 5 saniye
 
 /** Kurulum sırasında önbelleğe alınacak statik dosyalar */
@@ -21,6 +21,9 @@ const STATIC_ASSETS = [
   'js/ai.js',
   'js/storage.js',
   'js/models.js',
+  'js/history.js',
+  'js/share.js',
+  'js/notifications.js',
   'manifest.json',
 ];
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -53,6 +53,14 @@
       <span class="header-logo-text">HavaPuls</span>
     </a>
     <div class="header-actions">
+      <button
+        id="btn-theme-toggle"
+        class="btn btn-icon"
+        aria-label="Temayı değiştir"
+        title="Karanlık/Aydınlık tema"
+      >
+        <!-- JS tarafından doldurulur -->
+      </button>
       <button
         id="btn-add-member"
         class="btn btn-icon"
@@ -119,6 +127,13 @@
           <div class="detail-city" id="detail-city">—</div>
         </div>
       </div>
+      <button id="btn-share-card" class="btn btn-icon" aria-label="Hava kartını paylaş" title="Paylaş">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+      </button>
     </div>
 
     <!-- Büyük Hava Gösterimi -->
@@ -142,6 +157,35 @@
       <div class="detail-section-title">5 Günlük Tahmin</div>
       <div class="forecast-scroll" id="forecast-scroll" role="list" aria-label="5 günlük hava tahmini">
         <!-- JS ile doldurulur -->
+      </div>
+    </div>
+
+    <!-- 24 Saatlik Sıcaklık Grafiği -->
+    <div class="detail-section">
+      <div class="detail-section-title">Bugün — 24 Saatlik Sıcaklık</div>
+      <div class="detail-history-chart" id="detail-history-chart">
+        <!-- JS ile doldurulur -->
+      </div>
+    </div>
+
+    <!-- Kıyafet Önerisi -->
+    <div class="detail-section">
+      <div class="detail-ai-card" id="clothing-card">
+        <div class="detail-ai-header">
+          <div class="detail-ai-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/>
+            </svg>
+            Kıyafet Önerisi
+          </div>
+          <span class="detail-ai-badge" id="clothing-badge">Yükleniyor</span>
+        </div>
+        <div class="detail-ai-text" id="clothing-text" aria-live="polite">
+          <div class="card-loading">
+            <div class="loading-dots"><span></span><span></span><span></span></div>
+            Hazırlanıyor...
+          </div>
+        </div>
       </div>
     </div>
 
@@ -269,6 +313,29 @@
       </div>
     </div>
 
+    <!-- Bildirimler -->
+    <div class="settings-section" style="margin:0 16px 0;" id="notif-section">
+      <div class="settings-item">
+        <div>
+          <div class="settings-item-label">Bildirimler</div>
+          <div class="settings-item-desc">Sabah hava özeti ve uyarılar</div>
+        </div>
+        <button class="btn btn-ghost" id="btn-notif-toggle" style="border:1px solid var(--clr-border);">Aç</button>
+      </div>
+      <div class="settings-item">
+        <div class="settings-item-label" style="font-size:0.875rem;">🌅 Sabah Özeti (07:00)</div>
+        <div class="toggle-group" role="group">
+          <div class="toggle-option" id="toggle-notif-morning" role="button" tabindex="0" aria-pressed="true">Açık</div>
+        </div>
+      </div>
+      <div class="settings-item" style="border-bottom:none;">
+        <div class="settings-item-label" style="font-size:0.875rem;">🧥 Giyinme Uyarısı</div>
+        <div class="toggle-group" role="group">
+          <div class="toggle-option" id="toggle-notif-dressing" role="button" tabindex="0" aria-pressed="true">Açık</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Tehlikeli Bölge -->
     <div class="settings-section" style="margin:16px;">
       <div class="settings-item" style="flex-direction:column;align-items:stretch;gap:8px;">
@@ -292,7 +359,7 @@
     </div>
 
     <div style="padding:16px;text-align:center;color:var(--clr-text-3);font-size:0.75rem;">
-      HavaPuls v1.0 · Hava verisi: Open-Meteo · AI: Gemini 3.1 Flash Lite
+      HavaPuls v2.0 · Hava verisi: Open-Meteo · AI: Gemini 3.1 Flash Lite
     </div>
   </section>
 
@@ -357,6 +424,15 @@
         </svg>
         Şehri yazıp kaydet'e bas — otomatik doğrulanacak
       </div>
+      <!-- Birden fazla eşleşme durumunda şehir seçim listesi -->
+      <div
+        id="city-results-list"
+        class="city-results-list"
+        hidden
+        role="listbox"
+        aria-label="Şehir seçin"
+        aria-live="polite"
+      ></div>
     </div>
 
     <!-- Silme Butonu (düzenleme modunda görünür) -->
@@ -384,6 +460,9 @@
 
 <!-- Toast Bildirimi -->
 <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<!-- Paylaşım için gizli canvas -->
+<canvas id="share-canvas" style="display:none;" aria-hidden="true"></canvas>
 
 <!-- Uygulama JS (ES Module) -->
 <script type="module" src="js/app.js"></script>

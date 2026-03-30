@@ -36,6 +36,7 @@ const CURRENT_VARS = [
   'surface_pressure',
   'visibility',
   'cloud_cover',
+  'is_day',
 ].join(',');
 
 /** Günlük tahmin için istenen değişkenler */
@@ -106,7 +107,7 @@ async function geocodeCity(cityName) {
   const cached = getGeoCache(normalized);
   if (cached) return cached;
 
-  // API çağrısı
+  // API çağrısı (tek sonuç)
   const params = new URLSearchParams({
     name:     normalized,
     count:    '1',
@@ -127,11 +128,49 @@ async function geocodeCity(cityName) {
     longitude: data.results[0].longitude,
     name:      data.results[0].name,
     country:   data.results[0].country_code || '',
+    admin1:    data.results[0].admin1 || '',
+    admin2:    data.results[0].admin2 || '',
   };
 
   // Önbelleğe kaydet (sonsuz TTL)
   setGeoCache(normalized, result);
   return result;
+}
+
+/**
+ * Şehir adını arar, birden fazla eşleşme olabilir. Önbellek kullanmaz.
+ * Kullanıcıya seçim sunmak için kullanılır.
+ * @param {string} cityName
+ * @param {number} [count=5]
+ * @returns {Promise<import('./models.js').GeoResult[]>}
+ */
+async function searchCities(cityName, count = 5) {
+  const normalized = normalizeCity(cityName);
+  if (!normalized) throw new Error('Geçersiz şehir adı');
+
+  const params = new URLSearchParams({
+    name:     normalized,
+    count:    String(count),
+    language: 'tr',
+    format:   'json',
+  });
+
+  const response = await fetch(`${GEOCODING_URL}?${params}`, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error(`Geocoding API hatası: ${response.status}`);
+
+  const data = await response.json();
+  if (!data.results || data.results.length === 0) {
+    throw new Error(`"${cityName}" şehri bulunamadı. Lütfen geçerli bir şehir adı girin.`);
+  }
+
+  return data.results.map(r => ({
+    latitude:  r.latitude,
+    longitude: r.longitude,
+    name:      r.name,
+    country:   r.country_code || '',
+    admin1:    r.admin1 || '',
+    admin2:    r.admin2 || '',
+  }));
 }
 
 // ─────────────────────────────────────────────
@@ -159,6 +198,8 @@ function parseCurrentWeather(current, city) {
     weatherCode:             current.weather_code,
     city,
     precipitationProbability: 0, // Günlük tahminle doldurulur
+    isDay:                   current.is_day === 1,
+    weatherDescription:      '', // Çağıran tarafından doldurulur
   };
 }
 
@@ -337,12 +378,43 @@ function formatTemp(celsius, unit = 'celsius') {
   return `${val}°${unit === 'fahrenheit' ? 'F' : 'C'}`;
 }
 
+// ─────────────────────────────────────────────
+// Saatlik Tahmin (24 Saatlik Grafik için)
+// ─────────────────────────────────────────────
+
+/**
+ * Belirli koordinatlar için bugünün saatlik sıcaklık verisini çeker.
+ * @param {number} lat
+ * @param {number} lon
+ * @returns {Promise<{ times: string[], temps: number[] }>}
+ */
+async function fetchHourlyTemperature(lat, lon) {
+  const params = new URLSearchParams({
+    latitude:     lat,
+    longitude:    lon,
+    hourly:       'temperature_2m',
+    timezone:     'auto',
+    forecast_days: '1',
+  });
+
+  const response = await fetch(`${WEATHER_URL}?${params}`, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error(`Saatlik veri API hatası: ${response.status}`);
+
+  const data = await response.json();
+  return {
+    times: data.hourly.time,
+    temps: data.hourly.temperature_2m,
+  };
+}
+
 export {
   normalizeCity,
   geocodeCity,
+  searchCities,
   fetchWeather,
   fetchWeatherWithCache,
   fetchAllWeather,
+  fetchHourlyTemperature,
   getWeatherLabel,
   getWeatherCategory,
   formatTemp,

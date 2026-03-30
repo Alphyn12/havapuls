@@ -37,6 +37,7 @@
  * @property {number} weatherCode - WMO hava kodu
  * @property {string} city - Şehir adı
  * @property {number} [precipitationProbability] - Yağış olasılığı (%)
+ * @property {boolean} [isDay] - Gündüz mü? (true=gündüz, false=gece)
  */
 
 /**
@@ -74,6 +75,8 @@
  * @property {number} longitude - Boylam
  * @property {string} name - Şehir adı (API'den dönen)
  * @property {string} country - Ülke kodu
+ * @property {string} [admin1] - İl/Bölge adı (örn: "Tekirdağ", "Van")
+ * @property {string} [admin2] - İlçe adı
  */
 
 /**

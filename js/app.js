@@ -7,30 +7,42 @@
 'use strict';
 
 import {
-  getMembers, addMember, updateMember, deleteMember,
+  getMembers, saveMembers, addMember, updateMember, deleteMember,
   getSettings, saveSettings, saveApiKey, getApiKey, resetAllData,
+  setGeoCache, getTheme, saveTheme, getNotificationSettings, saveNotificationSettings,
 } from './storage.js';
 import {
-  geocodeCity, fetchAllWeather,
+  normalizeCity, geocodeCity, searchCities,
+  fetchAllWeather, fetchHourlyTemperature,
   getWeatherLabel, formatTemp,
 } from './api.js';
-import { getAIAdvice } from './ai.js';
+import { getAIAdvice, getClothingAdvice } from './ai.js';
+import { renderTempChart } from './history.js';
+import { shareWeatherCard } from './share.js';
+import {
+  requestNotificationPermission, hasNotificationPermission,
+  scheduleMorningNotification, cancelAllNotifications, checkDressingWarnings,
+} from './notifications.js';
 import { AVATARS, WMO_CODES, GUN_ADLARI_KISA } from './models.js';
 
 // ─────────────────────────────────────────────
 // Uygulama State
 // ─────────────────────────────────────────────
 
-/** @type {{ members: import('./models.js').FamilyMember[], weatherData: Object.<string, any>, currentView: string, selectedMemberId: string|null, editingMemberId: string|null, isRefreshing: boolean, lastUpdate: number }} */
+/** @type {{ members: import('./models.js').FamilyMember[], weatherData: Object.<string, any>, currentView: string, selectedMemberId: string|null, editingMemberId: string|null, isRefreshing: boolean, lastUpdate: number, pendingCityResults: any }} */
 const state = {
-  members:          [],
-  weatherData:      {}, // memberId → { current, forecast, error }
-  currentView:      'home',
-  selectedMemberId: null,
-  editingMemberId:  null,
-  isRefreshing:     false,
-  lastUpdate:       0,
+  members:            [],
+  weatherData:        {}, // memberId → { current, forecast, error }
+  currentView:        'home',
+  selectedMemberId:   null,
+  editingMemberId:    null,
+  isRefreshing:       false,
+  lastUpdate:         0,
+  pendingCityResults: null, // Şehir seçimi bekleniyorken sonuçlar burada
 };
+
+// Drag-and-drop durumu
+let _dragSourceId = null;
 
 // ─────────────────────────────────────────────
 // SVG Hava İkonları
@@ -102,6 +114,14 @@ function getWeatherSVG(category, size = 48) {
       <line class="icon-rain-drop-3" x1="32" y1="29" x2="31" y2="34" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round"/>
       <line class="icon-rain-drop-4" x1="20" y1="33" x2="19" y2="38" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round"/>
     </svg>`,
+
+    night: `<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path class="icon-moon" d="M32 26a12 12 0 1 1-14-14 9 9 0 0 0 14 14z" fill="#a5b4fc"/>
+      <circle class="icon-star-1" cx="35" cy="11" r="1.8" fill="#e2e8f0"/>
+      <circle class="icon-star-2" cx="39" cy="19" r="1.2" fill="#e2e8f0" opacity="0.7"/>
+      <circle class="icon-star-3" cx="29" cy="7"  r="1.2" fill="#e2e8f0" opacity="0.8"/>
+      <circle class="icon-star-4" cx="38" cy="9"  r="0.8" fill="#e2e8f0" opacity="0.5"/>
+    </svg>`,
   };
 
   return icons[category] || icons.clear;
@@ -167,22 +187,25 @@ function showView(view, direction = 'right') {
 // ─────────────────────────────────────────────
 
 /**
- * WMO koduna göre uygun SVG kategorisini döner.
+ * WMO koduna ve gündüz/gece durumuna göre uygun SVG kategorisini döner.
  * @param {number} code
+ * @param {boolean} [isDay=true] - Gündüz mü?
  * @returns {string}
  */
-function codeToIconCategory(code) {
+function codeToIconCategory(code, isDay = true) {
   const entry = WMO_CODES[code];
-  if (!entry) return 'clear';
+  if (!entry) return isDay ? 'clear' : 'night';
   const icon = entry.icon;
-  if (icon.includes('sun')) return 'clear';
+  if (icon.includes('sun') || entry.category === 'clear') {
+    return isDay ? 'clear' : 'night';
+  }
   if (icon.includes('drizzle')) return 'drizzle';
   if (icon.includes('rain') || icon.includes('shower')) return 'rain';
   if (icon.includes('snow')) return 'snow';
   if (icon.includes('storm')) return 'storm';
   if (icon.includes('fog')) return 'fog';
   if (icon.includes('cloud')) return 'cloudy';
-  return 'clear';
+  return isDay ? 'clear' : 'night';
 }
 
 // ─────────────────────────────────────────────
@@ -296,12 +319,30 @@ function renderMemberCard(member, settings) {
   const { current } = wd;
   const temp    = formatTemp(current.temperature, settings.unit);
   const desc    = getWeatherLabel(current.weatherCode);
-  const iconCat = codeToIconCategory(current.weatherCode);
+  const isDay   = current.isDay !== false;
+  const iconCat = codeToIconCategory(current.weatherCode, isDay);
   const aiTip   = wd.aiAdvice;
 
+  // Gün doğumu/batımı (forecast[0]'dan al)
+  const forecast = wd.forecast || [];
+  const todaySunrise = forecast[0]?.sunrise ? new Date(forecast[0].sunrise).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : null;
+  const todaySunset  = forecast[0]?.sunset  ? new Date(forecast[0].sunset).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : null;
+
   return `
-    <div class="family-card" data-member-id="${member.id}" tabindex="0" role="button"
+    <div class="family-card weather-bg-${iconCat}"
+         data-member-id="${member.id}"
+         draggable="false"
+         tabindex="0" role="button"
          aria-label="${member.name}, ${member.city}: ${temp}, ${desc}">
+
+      <!-- Sürükle tutacağı -->
+      <div class="card-drag-handle" data-drag-id="${member.id}" draggable="true" aria-label="Sürükleyerek sırala" title="Sürükleyerek sırala">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/>
+          <circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/>
+        </svg>
+      </div>
+
       <!-- Üst: kimlik + düzenle -->
       <div class="card-header">
         <div class="card-identity">
@@ -337,11 +378,11 @@ function renderMemberCard(member, settings) {
           </svg>
           %${current.humidity}
         </span>
-        <span class="metric-chip" title="Rüzgar">
+        <span class="metric-chip" title="Rüzgar hızı">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
           </svg>
-          ${Math.round(current.windSpeed)} km/s
+          ${Math.round(current.windSpeed)} km/h
         </span>
         <span class="metric-chip" title="UV İndeksi">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -362,6 +403,8 @@ function renderMemberCard(member, settings) {
           </svg>
           %${current.precipitationProbability}
         </span>` : ''}
+        ${todaySunrise ? `<span class="metric-chip" title="Gün doğumu">🌅 ${todaySunrise}</span>` : ''}
+        ${todaySunset  ? `<span class="metric-chip" title="Gün batımı">🌇 ${todaySunset}</span>`  : ''}
       </div>
 
       <!-- AI öneri chip -->
@@ -438,7 +481,8 @@ async function renderDetail(memberId) {
   const temp     = formatTemp(current.temperature, settings.unit);
   const tempAppr = formatTemp(current.apparentTemperature, settings.unit);
   const desc     = getWeatherLabel(current.weatherCode);
-  const iconCat  = codeToIconCategory(current.weatherCode);
+  const isDay    = current.isDay !== false;
+  const iconCat  = codeToIconCategory(current.weatherCode, isDay);
 
   // Büyük hava
   document.getElementById('detail-icon').innerHTML     = getWeatherSVG(iconCat, 80);
@@ -464,7 +508,7 @@ async function renderDetail(memberId) {
         </svg>
         Rüzgar
       </div>
-      <div class="detail-metric-value">${Math.round(current.windSpeed)} km/s</div>
+      <div class="detail-metric-value">${Math.round(current.windSpeed)} km/h</div>
     </div>
     <div class="detail-metric-card">
       <div class="detail-metric-label">
@@ -507,6 +551,30 @@ async function renderDetail(memberId) {
       </div>
       <div class="detail-metric-value">${(current.visibility / 1000).toFixed(1)} km</div>
     </div>
+    ${forecast[0]?.sunrise ? `
+    <div class="detail-metric-card">
+      <div class="detail-metric-label">🌅 Gün Doğumu</div>
+      <div class="detail-metric-value">
+        ${new Date(forecast[0].sunrise).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+      </div>
+    </div>
+    <div class="detail-metric-card">
+      <div class="detail-metric-label">🌇 Gün Batımı</div>
+      <div class="detail-metric-value">
+        ${new Date(forecast[0].sunset).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+      </div>
+    </div>
+    <div class="detail-metric-card" style="grid-column:span 2;">
+      <div class="detail-metric-label">⏱️ Gün Uzunluğu</div>
+      <div class="detail-metric-value" style="font-size:1rem;">
+        ${(() => {
+          const rise = new Date(forecast[0].sunrise);
+          const set  = new Date(forecast[0].sunset);
+          const diff = Math.round((set - rise) / 60000);
+          return `${Math.floor(diff / 60)}s ${diff % 60}dk`;
+        })()}
+      </div>
+    </div>` : ''}
   `;
 
   // 5 Günlük Tahmin
@@ -517,7 +585,7 @@ async function renderDetail(memberId) {
     const maxTemp  = formatTemp(day.maxTemp, settings.unit);
     const minTemp  = formatTemp(day.minTemp, settings.unit);
     const isToday  = day.date === bugun;
-    const cat      = codeToIconCategory(day.weatherCode);
+    const cat      = codeToIconCategory(day.weatherCode, true); // Tahmin ikonları gündüz olarak göster
 
     return `
       <div class="forecast-day ${isToday ? 'today' : ''}" role="listitem" aria-label="${gunAdi}: ${maxTemp} / ${minTemp}">
@@ -534,6 +602,76 @@ async function renderDetail(memberId) {
 
   // AI Öneri Yükle
   await loadAIAdvice(memberId, current);
+
+  // 24 Saatlik Grafik Yükle (arka planda)
+  loadTempHistory(memberId, member.latitude, member.longitude, settings.unit);
+
+  // Kıyafet Önerisi Yükle
+  loadClothingAdvice(memberId, current);
+}
+
+/**
+ * 24 saatlik sıcaklık grafiğini yükler ve ilgili section'a yerleştirir.
+ * @param {string} memberId
+ * @param {number} lat
+ * @param {number} lon
+ * @param {'celsius'|'fahrenheit'} unit
+ */
+async function loadTempHistory(memberId, lat, lon, unit) {
+  const container = document.getElementById('detail-history-chart');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="card-loading">
+      <div class="loading-dots" aria-label="Yükleniyor"><span></span><span></span><span></span></div>
+      Grafik yükleniyor...
+    </div>`;
+
+  try {
+    const { times, temps } = await fetchHourlyTemperature(lat, lon);
+    // Sadece bu üye hâlâ seçiliyse güncelle
+    if (state.selectedMemberId !== memberId) return;
+    container.innerHTML = renderTempChart(times, temps, unit);
+  } catch (err) {
+    if (state.selectedMemberId !== memberId) return;
+    container.innerHTML = `<div class="chart-empty">Grafik yüklenemedi.</div>`;
+    console.error('[History] Grafik yüklenemedi:', err);
+  }
+}
+
+/**
+ * Kıyafet önerisini yükler.
+ * @param {string} memberId
+ * @param {import('./models.js').WeatherData} current
+ */
+async function loadClothingAdvice(memberId, current) {
+  const container = document.getElementById('clothing-text');
+  const badge     = document.getElementById('clothing-badge');
+  if (!container) return;
+
+  const member = state.members.find(m => m.id === memberId);
+  if (!member) return;
+
+  container.innerHTML = `
+    <div class="card-loading">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+      Kıyafet önerisi hazırlanıyor...
+    </div>`;
+
+  try {
+    const enriched = { ...current, weatherDescription: getWeatherLabel(current.weatherCode) };
+    const result   = await getClothingAdvice(enriched, member.name);
+    if (state.selectedMemberId !== memberId) return;
+
+    container.textContent = result.outfit;
+    if (badge) {
+      badge.textContent = result.isAI ? 'Gemini AI' : 'Kural Motoru';
+      badge.className   = `detail-ai-badge${result.isAI ? '' : ' rule'}`;
+    }
+  } catch (err) {
+    if (container) container.textContent = '⚠️ Kıyafet önerisi alınamadı.';
+    console.error('[Clothing] Öneri yüklenemedi:', err);
+  }
 }
 
 /**
@@ -609,6 +747,33 @@ function renderSettings() {
 
   // API anahtarı durumu
   updateApiKeyStatus();
+
+  // Bildirim durumu
+  const notifSettings = getNotificationSettings();
+  const notifToggleBtn  = document.getElementById('btn-notif-toggle');
+  const notifMorningBtn = document.getElementById('toggle-notif-morning');
+  const notifDressBtn   = document.getElementById('toggle-notif-dressing');
+
+  if (notifToggleBtn) {
+    notifToggleBtn.textContent     = notifSettings.enabled ? 'Kapat' : 'Aç';
+    notifToggleBtn.className       = notifSettings.enabled ? 'btn btn-ghost notif-active' : 'btn btn-ghost';
+  }
+  if (notifMorningBtn) {
+    notifMorningBtn.classList.toggle('active', notifSettings.morning);
+    notifMorningBtn.setAttribute('aria-pressed', String(notifSettings.morning));
+    notifMorningBtn.textContent = notifSettings.morning ? 'Açık' : 'Kapalı';
+  }
+  if (notifDressBtn) {
+    notifDressBtn.classList.toggle('active', notifSettings.dressing);
+    notifDressBtn.setAttribute('aria-pressed', String(notifSettings.dressing));
+    notifDressBtn.textContent = notifSettings.dressing ? 'Açık' : 'Kapalı';
+  }
+
+  // Bildirim desteği kontrolü
+  const notifSection = document.getElementById('notif-section');
+  if (notifSection && !('Notification' in window)) {
+    notifSection.style.display = 'none';
+  }
 }
 
 /**
@@ -761,63 +926,250 @@ async function handleModalSave() {
   }
 
   // Butonu devre dışı bırak
-  saveBtn.disabled     = true;
-  saveBtn.textContent  = 'Doğrulanıyor...';
-  cityHint.className   = 'form-hint';
-  cityHint.innerHTML   = `<div class="loading-dots"><span></span><span></span><span></span></div> Şehir doğrulanıyor...`;
+  saveBtn.disabled    = true;
+  saveBtn.textContent = 'Aranıyor...';
+  cityHint.className  = 'form-hint';
+  cityHint.innerHTML  = `<div class="loading-dots"><span></span><span></span><span></span></div> Şehir aranıyor...`;
   nameInp.classList.remove('error');
   cityInp.classList.remove('error');
 
-  try {
-    const geo    = await geocodeCity(city);
-    const avatar = getSelectedAvatar();
+  // Önceki şehir seçim listesini gizle
+  const cityResultsList = document.getElementById('city-results-list');
+  if (cityResultsList) cityResultsList.hidden = true;
 
-    if (state.editingMemberId) {
-      updateMember(state.editingMemberId, {
-        name,
-        city,
-        cityNormalized: geo.name,
-        latitude:       geo.latitude,
-        longitude:      geo.longitude,
-        avatar,
-      });
-      // Önbelleği temizle (eski konum)
-      delete state.weatherData[state.editingMemberId];
-    } else {
-      addMember({
-        name,
-        city,
-        cityNormalized: geo.name,
-        latitude:       geo.latitude,
-        longitude:      geo.longitude,
-        avatar,
-      });
+  try {
+    const results = await searchCities(city, 5);
+
+    // Tekil sonuç → direkt ilerle
+    if (results.length === 1) {
+      await proceedWithCityResult(name, city, results[0]);
+      return;
     }
 
-    cityHint.className   = 'form-hint success';
-    cityHint.innerHTML   = `
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      ${geo.name}, ${geo.country} bulundu ✓
-    `;
+    // Birden fazla sonuç → seçim listesi göster
+    saveBtn.disabled   = false;
+    saveBtn.innerHTML  = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Kaydet`;
+    cityHint.className = 'form-hint';
+    cityHint.innerHTML = `📍 "<strong>${escHtml(city)}</strong>" için birden fazla sonuç bulundu. Hangisi?`;
 
-    setTimeout(async () => {
-      closeModal();
-      await loadAllData();
-    }, 600);
+    state.pendingCityResults = { name, city, results };
+
+    if (cityResultsList) {
+      cityResultsList.hidden   = false;
+      cityResultsList.innerHTML = results.map((r, idx) => `
+        <div class="city-result-item" role="option" tabindex="0" data-result-idx="${idx}">
+          <span class="city-result-pin" aria-hidden="true">📍</span>
+          <div>
+            <div class="city-result-name">${escHtml(r.name)}</div>
+            <div class="city-result-region">
+              ${r.admin1 ? escHtml(r.admin1) + ', ' : ''}${r.admin2 ? escHtml(r.admin2) + ' · ' : ''}${escHtml(r.country)}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
 
   } catch (err) {
-    console.error('[Modal] Şehir doğrulama hatası:', err);
+    console.error('[Modal] Şehir arama hatası:', err);
     cityInp.classList.add('error');
     cityHint.className   = 'form-hint error';
     cityHint.textContent = err.message || 'Şehir bulunamadı';
     showToast('❗ ' + (err.message || 'Şehir bulunamadı'));
-  } finally {
-    saveBtn.disabled    = false;
-    saveBtn.innerHTML   = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      Kaydet
+    saveBtn.disabled   = false;
+    saveBtn.innerHTML  = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Kaydet`;
+  }
+}
+
+/**
+ * Seçilen şehir sonucuyla üyeyi kaydeder.
+ * @param {string} name
+ * @param {string} city - Kullanıcının yazdığı şehir
+ * @param {import('./models.js').GeoResult} geo
+ */
+async function proceedWithCityResult(name, city, geo) {
+  const cityHint        = document.getElementById('city-hint');
+  const cityResultsList = document.getElementById('city-results-list');
+  const saveBtn         = document.getElementById('btn-modal-save');
+
+  // Seçilen sonucu önbelleğe al
+  setGeoCache(normalizeCity(city), geo);
+
+  const avatar = getSelectedAvatar();
+
+  if (state.editingMemberId) {
+    updateMember(state.editingMemberId, {
+      name, city,
+      cityNormalized: geo.name,
+      latitude:       geo.latitude,
+      longitude:      geo.longitude,
+      avatar,
+    });
+    delete state.weatherData[state.editingMemberId];
+  } else {
+    addMember({
+      name, city,
+      cityNormalized: geo.name,
+      latitude:       geo.latitude,
+      longitude:      geo.longitude,
+      avatar,
+    });
+  }
+
+  if (cityHint) {
+    cityHint.className = 'form-hint success';
+    cityHint.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      ${escHtml(geo.name)}${geo.admin1 ? ', ' + escHtml(geo.admin1) : ''}, ${escHtml(geo.country)} ✓
     `;
   }
+  if (cityResultsList) cityResultsList.hidden = true;
+  if (saveBtn) {
+    saveBtn.disabled  = false;
+    saveBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Kaydet`;
+  }
+  state.pendingCityResults = null;
+
+  setTimeout(async () => {
+    closeModal();
+    await loadAllData();
+  }, 600);
+}
+
+// ─────────────────────────────────────────────
+// Tema Yönetimi
+// ─────────────────────────────────────────────
+
+/**
+ * Kaydedilmiş temayı uygular.
+ */
+function initTheme() {
+  const theme = getTheme();
+  document.documentElement.setAttribute('data-theme', theme);
+  updateThemeToggle(theme);
+}
+
+/**
+ * Tema toggle butonunu günceller.
+ * @param {'dark'|'light'} theme
+ */
+function updateThemeToggle(theme) {
+  const btn = document.getElementById('btn-theme-toggle');
+  if (!btn) return;
+  btn.setAttribute('aria-label', theme === 'dark' ? 'Aydınlık temaya geç' : 'Karanlık temaya geç');
+  btn.innerHTML = theme === 'dark'
+    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>`
+    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>`;
+}
+
+// ─────────────────────────────────────────────
+// Drag-and-Drop Sıralama
+// ─────────────────────────────────────────────
+
+/**
+ * Members listesi için drag-and-drop event'lerini kurar.
+ * @param {HTMLElement} container
+ */
+function setupDragAndDrop(container) {
+  // ── Mouse / Desktop ──
+  container.addEventListener('dragstart', (e) => {
+    const handle = e.target.closest('[data-drag-id]');
+    if (!handle) { e.preventDefault(); return; }
+    _dragSourceId = handle.dataset.dragId;
+    const card    = handle.closest('.family-card');
+    if (card) card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const card = e.target.closest('.family-card[data-member-id]');
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (card && card.dataset.memberId !== _dragSourceId) card.classList.add('drag-over');
+  });
+
+  container.addEventListener('dragleave', (e) => {
+    if (!container.contains(e.relatedTarget)) {
+      container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    }
+  });
+
+  container.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const targetCard = e.target.closest('.family-card[data-member-id]');
+    if (!targetCard || targetCard.dataset.memberId === _dragSourceId) return;
+    reorderMembers(_dragSourceId, targetCard.dataset.memberId);
+  });
+
+  container.addEventListener('dragend', () => {
+    container.querySelectorAll('.dragging, .drag-over').forEach(el => {
+      el.classList.remove('dragging', 'drag-over');
+    });
+    _dragSourceId = null;
+  });
+
+  // ── Touch / Mobile ──
+  let _touchDragId   = null;
+  let _lastTouchCard = null;
+
+  container.addEventListener('touchstart', (e) => {
+    const handle = e.target.closest('[data-drag-id]');
+    if (!handle) return;
+    _touchDragId = handle.dataset.dragId;
+    const card   = handle.closest('.family-card');
+    if (card) card.classList.add('dragging');
+  }, { passive: true });
+
+  container.addEventListener('touchmove', (e) => {
+    if (!_touchDragId) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const el    = document.elementFromPoint(touch.clientX, touch.clientY);
+    const card  = el?.closest('.family-card[data-member-id]');
+    container.querySelectorAll('.drag-over').forEach(c => c.classList.remove('drag-over'));
+    if (card && card.dataset.memberId !== _touchDragId) {
+      card.classList.add('drag-over');
+      _lastTouchCard = card.dataset.memberId;
+    } else {
+      _lastTouchCard = null;
+    }
+  }, { passive: false });
+
+  container.addEventListener('touchend', () => {
+    if (_touchDragId && _lastTouchCard) reorderMembers(_touchDragId, _lastTouchCard);
+    container.querySelectorAll('.dragging, .drag-over').forEach(c => {
+      c.classList.remove('dragging', 'drag-over');
+    });
+    _touchDragId   = null;
+    _lastTouchCard = null;
+  });
+}
+
+/**
+ * İki üyenin sırasını değiştirir ve kaydeder.
+ * @param {string} sourceId
+ * @param {string} targetId
+ */
+function reorderMembers(sourceId, targetId) {
+  const members   = [...state.members].sort((a, b) => a.order - b.order);
+  const srcIdx    = members.findIndex(m => m.id === sourceId);
+  const tgtIdx    = members.findIndex(m => m.id === targetId);
+  if (srcIdx === -1 || tgtIdx === -1) return;
+
+  const [removed] = members.splice(srcIdx, 1);
+  members.splice(tgtIdx, 0, removed);
+  members.forEach((m, i) => { m.order = i; });
+  saveMembers(members);
+  state.members = getMembers();
+  renderHome();
 }
 
 // ─────────────────────────────────────────────
@@ -864,13 +1216,18 @@ async function loadAllData(showLoader = true) {
           .then(result => {
             if (state.weatherData[member.id]) {
               state.weatherData[member.id].aiAdvice = result;
-              // Sadece ana sayfadaysak yeniden render et
               if (state.currentView === 'home') renderHome();
             }
           })
           .catch(() => {});
       }
     });
+
+    // Giyinme uyarısı kontrolü
+    checkDressingWarnings(state.members, state.weatherData);
+
+    // Sabah bildirimini planla (uygulama açık tutulursa çalışır)
+    scheduleMorningNotification(state.weatherData);
 
   } catch (err) {
     console.error('[App] Genel veri yükleme hatası:', err);
@@ -924,6 +1281,19 @@ function setupEventListeners() {
   document.getElementById('btn-refresh')?.addEventListener('click', () => {
     if (!state.isRefreshing) loadAllData(false);
   });
+
+  // ── Tema Toggle ──
+  document.getElementById('btn-theme-toggle')?.addEventListener('click', () => {
+    const current = getTheme();
+    const next    = current === 'dark' ? 'light' : 'dark';
+    saveTheme(next);
+    document.documentElement.setAttribute('data-theme', next);
+    updateThemeToggle(next);
+  });
+
+  // ── Drag-and-Drop ──
+  const membersList = document.getElementById('members-list');
+  if (membersList) setupDragAndDrop(membersList);
 
   // ── Kartlara Tıklama (Event Delegation) ──
   document.getElementById('members-list')?.addEventListener('click', (e) => {
@@ -1054,6 +1424,25 @@ function setupEventListeners() {
     if (btn) setSelectedAvatar(btn.dataset.avatar);
   });
 
+  // ── Şehir Seçim Listesi ──
+  document.getElementById('city-results-list')?.addEventListener('click', async (e) => {
+    const item = e.target.closest('.city-result-item[data-result-idx]');
+    if (!item || !state.pendingCityResults) return;
+    const idx = parseInt(item.dataset.resultIdx, 10);
+    const { name, city, results } = state.pendingCityResults;
+    if (results[idx]) await proceedWithCityResult(name, city, results[idx]);
+  });
+
+  document.getElementById('city-results-list')?.addEventListener('keydown', async (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const item = e.target.closest('.city-result-item[data-result-idx]');
+    if (!item || !state.pendingCityResults) return;
+    e.preventDefault();
+    const idx = parseInt(item.dataset.resultIdx, 10);
+    const { name, city, results } = state.pendingCityResults;
+    if (results[idx]) await proceedWithCityResult(name, city, results[idx]);
+  });
+
   // Üye Sil
   document.getElementById('btn-delete-member')?.addEventListener('click', () => {
     if (!state.editingMemberId) return;
@@ -1075,6 +1464,57 @@ function setupEventListeners() {
     const wd = state.weatherData[state.selectedMemberId];
     if (!wd?.current) return;
     loadAIAdvice(state.selectedMemberId, wd.current, true);
+  });
+
+  // Paylaş butonu
+  document.getElementById('btn-share-card')?.addEventListener('click', async () => {
+    if (!state.selectedMemberId) return;
+    const member = state.members.find(m => m.id === state.selectedMemberId);
+    const wd     = state.weatherData[state.selectedMemberId];
+    if (!member || !wd?.current) return;
+
+    const settings = getSettings();
+    try {
+      const result = await shareWeatherCard(member, wd, settings.unit);
+      if (result === 'downloaded') showToast('📥 Kart indirildi');
+      else if (result === 'shared') showToast('✅ Paylaşıldı');
+    } catch (err) {
+      console.error('[Share] Paylaşım hatası:', err);
+      showToast('❗ Paylaşım başarısız');
+    }
+  });
+
+  // ── Ayarlar — Bildirim Toggle ──
+  document.getElementById('btn-notif-toggle')?.addEventListener('click', async () => {
+    const settings = getNotificationSettings();
+    if (!settings.enabled) {
+      // Açmaya çalışıyor
+      const perm = await requestNotificationPermission();
+      if (perm !== 'granted') {
+        showToast('❗ Bildirim izni verilmedi');
+        return;
+      }
+      saveNotificationSettings({ enabled: true });
+      scheduleMorningNotification(state.weatherData);
+      showToast('🔔 Bildirimler açıldı');
+    } else {
+      saveNotificationSettings({ enabled: false });
+      cancelAllNotifications();
+      showToast('🔕 Bildirimler kapatıldı');
+    }
+    renderSettings();
+  });
+
+  document.getElementById('toggle-notif-morning')?.addEventListener('click', () => {
+    const s = getNotificationSettings();
+    saveNotificationSettings({ morning: !s.morning });
+    renderSettings();
+  });
+
+  document.getElementById('toggle-notif-dressing')?.addEventListener('click', () => {
+    const s = getNotificationSettings();
+    saveNotificationSettings({ dressing: !s.dressing });
+    renderSettings();
   });
 
   // ── Klavye: Escape ile modal/detay kapat ──
@@ -1139,6 +1579,9 @@ function handleHashChange() {
  * Uygulamayı başlatır.
  */
 async function init() {
+  // Temayı başlat
+  initTheme();
+
   // Event listener'ları kur
   setupEventListeners();
 
@@ -1147,11 +1590,6 @@ async function init() {
 
   // Veriyi yükle
   await loadAllData();
-
-  // API anahtarı yoksa ayarlar ekranını göster
-  if (!getApiKey() && getMembers().length === 0) {
-    // İlk açılış — ana sayfayı göster
-  }
 
   // Offline durumu kontrol et
   if (!navigator.onLine) {

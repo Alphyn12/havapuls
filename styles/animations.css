@@ -225,6 +225,60 @@
 
 .success-icon { animation: success-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
+/* ─── Gece — Ay Yüzme ─── */
+@keyframes moon-float {
+  0%, 100% { transform: translateY(0) rotate(-5deg);  }
+  50%       { transform: translateY(-3px) rotate(5deg); }
+}
+
+.icon-moon {
+  animation: moon-float 6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* ─── Gece — Yıldız Parıltı ─── */
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.9; transform: scale(1);    }
+  50%       { opacity: 0.3; transform: scale(0.7); }
+}
+
+.icon-star-1 { animation: star-twinkle 2s ease-in-out infinite;        }
+.icon-star-2 { animation: star-twinkle 2s ease-in-out infinite 0.6s;   }
+.icon-star-3 { animation: star-twinkle 2s ease-in-out infinite 1.2s;   }
+.icon-star-4 { animation: star-twinkle 2s ease-in-out infinite 0.3s;   }
+
+/* ─── Weather Wallpaper Animasyonları ─── */
+@keyframes bg-pulse-warm {
+  0%, 100% { opacity: 0.10; transform: scale(1); }
+  50%       { opacity: 0.18; transform: scale(1.06); }
+}
+
+@keyframes bg-pulse-night {
+  0%, 100% { opacity: 0.08; }
+  50%       { opacity: 0.15; }
+}
+
+@keyframes bg-pulse-snow {
+  0%, 100% { opacity: 0.10; }
+  50%       { opacity: 0.18; }
+}
+
+@keyframes bg-rain-sweep {
+  0%, 100% { opacity: 0.10; transform: translateY(0); }
+  50%       { opacity: 0.16; transform: translateY(3px); }
+}
+
+@keyframes bg-lightning-flicker {
+  0%, 88%, 100% { opacity: 0.10; }
+  90%, 96%      { opacity: 0.22; }
+  93%            { opacity: 0.08; }
+}
+
+@keyframes bg-fog-drift {
+  0%, 100% { opacity: 0.10; transform: translateX(0); }
+  50%       { opacity: 0.15; transform: translateX(5px); }
+}
+
 /* ─── Azaltılmış Hareket (Erişilebilirlik) ─── */
 @media (prefers-reduced-motion: reduce) {
   *,
