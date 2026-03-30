@@ -12,16 +12,16 @@ const NETWORK_TIMEOUT = 5000; // 5 saniye
 
 /** Kurulum sırasında önbelleğe alınacak statik dosyalar */
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/styles/main.css',
-  '/styles/animations.css',
-  '/js/app.js',
-  '/js/api.js',
-  '/js/ai.js',
-  '/js/storage.js',
-  '/js/models.js',
-  '/manifest.json',
+  './',
+  'index.html',
+  'styles/main.css',
+  'styles/animations.css',
+  'js/app.js',
+  'js/api.js',
+  'js/ai.js',
+  'js/storage.js',
+  'js/models.js',
+  'manifest.json',
 ];
 
 /** API isteklerini tanımlamak için URL desenleri */

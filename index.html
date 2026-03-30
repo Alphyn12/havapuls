@@ -13,11 +13,11 @@
   <title>HavaPuls</title>
 
   <!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.json" />
+  <link rel="manifest" href="manifest.json" />
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -28,8 +28,8 @@
   />
 
   <!-- Stiller -->
-  <link rel="stylesheet" href="/styles/main.css" />
-  <link rel="stylesheet" href="/styles/animations.css" />
+  <link rel="stylesheet" href="styles/main.css" />
+  <link rel="stylesheet" href="styles/animations.css" />
 </head>
 <body>
 
@@ -292,7 +292,7 @@
     </div>
 
     <div style="padding:16px;text-align:center;color:var(--clr-text-3);font-size:0.75rem;">
-      HavaPuls v1.0 · Hava verisi: Open-Meteo · AI: Gemini 2.0 Flash
+      HavaPuls v1.0 · Hava verisi: Open-Meteo · AI: Gemini 3.1 Flash Lite
     </div>
   </section>
 
@@ -386,13 +386,13 @@
 <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <!-- Uygulama JS (ES Module) -->
-<script type="module" src="/js/app.js"></script>
+<script type="module" src="js/app.js"></script>
 
 <!-- Service Worker Kaydı -->
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
+      navigator.serviceWorker.register('./sw.js')
         .then(reg => {
           // Yeni SW bekliyor mu kontrol et
           reg.addEventListener('updatefound', () => {
