@@ -1,0 +1,1163 @@
+/**
+ * @fileoverview HavaPuls — Ana Uygulama Mantığı
+ * State yönetimi, view router, render fonksiyonları, event handler'lar.
+ * @module app
+ */
+
+'use strict';
+
+import {
+  getMembers, addMember, updateMember, deleteMember,
+  getSettings, saveSettings, saveApiKey, getApiKey, resetAllData,
+} from './storage.js';
+import {
+  geocodeCity, fetchAllWeather,
+  getWeatherLabel, formatTemp,
+} from './api.js';
+import { getAIAdvice } from './ai.js';
+import { AVATARS, WMO_CODES, GUN_ADLARI_KISA } from './models.js';
+
+// ─────────────────────────────────────────────
+// Uygulama State
+// ─────────────────────────────────────────────
+
+/** @type {{ members: import('./models.js').FamilyMember[], weatherData: Object.<string, any>, currentView: string, selectedMemberId: string|null, editingMemberId: string|null, isRefreshing: boolean, lastUpdate: number }} */
+const state = {
+  members:          [],
+  weatherData:      {}, // memberId → { current, forecast, error }
+  currentView:      'home',
+  selectedMemberId: null,
+  editingMemberId:  null,
+  isRefreshing:     false,
+  lastUpdate:       0,
+};
+
+// ─────────────────────────────────────────────
+// SVG Hava İkonları
+// ─────────────────────────────────────────────
+
+/**
+ * WMO kategorisine göre animasyonlu SVG hava ikonu döner.
+ * @param {string} category - Hava kategorisi
+ * @param {number} [size=48] - İkon boyutu (px)
+ * @returns {string} SVG HTML string
+ */
+function getWeatherSVG(category, size = 48) {
+  const s = size;
+  const icons = {
+    clear: `<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="weather-icon-sun" aria-hidden="true">
+      <g class="icon-sun-rays">
+        <line x1="24" y1="4"  x2="24" y2="9"  stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="24" y1="39" x2="24" y2="44" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="4"  y1="24" x2="9"  y2="24" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="39" y1="24" x2="44" y2="24" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="9.37"  y1="9.37"  x2="12.9" y2="12.9"  stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="35.1"  y1="35.1"  x2="38.63" y2="38.63" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="9.37"  y1="38.63" x2="12.9"  y2="35.1"  stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="35.1"  y1="12.9"  x2="38.63" y2="9.37"  stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+      <circle class="icon-sun-core" cx="24" cy="24" r="9" fill="#fbbf24"/>
+    </svg>`,
+
+    cloudy: `<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="18" cy="22" r="5" fill="#fbbf24" opacity="0.7"/>
+      <ellipse class="icon-cloud-back" cx="21" cy="28" rx="9" ry="6" fill="#6b7280" opacity="0.5"/>
+      <ellipse class="icon-cloud" cx="26" cy="27" rx="12" ry="7" fill="#94a3b8"/>
+      <ellipse cx="20" cy="29" rx="8" ry="5" fill="#94a3b8"/>
+    </svg>`,
+
+    rain: `<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <ellipse class="icon-cloud" cx="24" cy="18" rx="13" ry="8" fill="#94a3b8"/>
+      <ellipse cx="17" cy="20" rx="8" ry="6" fill="#94a3b8"/>
+      <line class="icon-rain-drop-1" x1="16" y1="28" x2="14" y2="36" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/>
+      <line class="icon-rain-drop-2" x1="24" y1="28" x2="22" y2="36" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/>
+      <line class="icon-rain-drop-3" x1="32" y1="28" x2="30" y2="36" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>`,
+
+    snow: `<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <ellipse class="icon-cloud" cx="24" cy="17" rx="13" ry="8" fill="#94a3b8"/>
+      <ellipse cx="17" cy="19" rx="8" ry="6" fill="#94a3b8"/>
+      <circle class="icon-snow-flake-1" cx="16" cy="32" r="2.5" fill="#bae6fd"/>
+      <circle class="icon-snow-flake-2" cx="24" cy="34" r="2.5" fill="#bae6fd"/>
+      <circle class="icon-snow-flake-3" cx="32" cy="32" r="2.5" fill="#bae6fd"/>
+    </svg>`,
+
+    storm: `<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <ellipse class="icon-cloud" cx="24" cy="15" rx="14" ry="8" fill="#6b7280"/>
+      <ellipse cx="17" cy="17" rx="9" ry="6" fill="#6b7280"/>
+      <polyline class="icon-lightning" points="26,22 20,32 25,32 19,42" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>`,
+
+    fog: `<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <line class="icon-fog-line-1" x1="10" y1="20" x2="38" y2="20" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"/>
+      <line class="icon-fog-line-2" x1="14" y1="27" x2="34" y2="27" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"/>
+      <line class="icon-fog-line-3" x1="10" y1="34" x2="38" y2="34" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>`,
+
+    drizzle: `<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <ellipse class="icon-cloud" cx="24" cy="18" rx="13" ry="8" fill="#94a3b8"/>
+      <ellipse cx="17" cy="20" rx="8" ry="6" fill="#94a3b8"/>
+      <line class="icon-rain-drop-1" x1="16" y1="29" x2="15" y2="34" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round"/>
+      <line class="icon-rain-drop-2" x1="24" y1="29" x2="23" y2="34" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round"/>
+      <line class="icon-rain-drop-3" x1="32" y1="29" x2="31" y2="34" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round"/>
+      <line class="icon-rain-drop-4" x1="20" y1="33" x2="19" y2="38" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round"/>
+    </svg>`,
+  };
+
+  return icons[category] || icons.clear;
+}
+
+// ─────────────────────────────────────────────
+// Toast Bildirimi
+// ─────────────────────────────────────────────
+
+/** @type {number|null} */
+let toastTimeout = null;
+
+/**
+ * Kısa süreli bildirim mesajı gösterir.
+ * @param {string} mesaj
+ * @param {number} [süre=3000] - ms cinsinden gösterim süresi
+ */
+function showToast(mesaj, süre = 3000) {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+
+  toast.textContent = mesaj;
+  toast.classList.add('show');
+
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => toast.classList.remove('show'), süre);
+}
+
+// ─────────────────────────────────────────────
+// View Router
+// ─────────────────────────────────────────────
+
+/**
+ * Belirtilen view'ı gösterir, diğerlerini gizler.
+ * @param {'home'|'detail'|'settings'} view
+ * @param {'left'|'right'} [direction='right'] - Geçiş yönü
+ */
+function showView(view, direction = 'right') {
+  const viewMap = {
+    home:     document.getElementById('view-home'),
+    detail:   document.getElementById('view-detail'),
+    settings: document.getElementById('view-settings'),
+  };
+
+  Object.entries(viewMap).forEach(([key, el]) => {
+    if (!el) return;
+    if (key === view) {
+      el.classList.add('active');
+      el.classList.add(direction === 'right' ? 'view-enter-right' : 'view-enter-left');
+      setTimeout(() => {
+        el.classList.remove('view-enter-right', 'view-enter-left');
+      }, 350);
+    } else {
+      el.classList.remove('active');
+    }
+  });
+
+  state.currentView = view;
+}
+
+// ─────────────────────────────────────────────
+// Hava İkonu Oluşturma
+// ─────────────────────────────────────────────
+
+/**
+ * WMO koduna göre uygun SVG kategorisini döner.
+ * @param {number} code
+ * @returns {string}
+ */
+function codeToIconCategory(code) {
+  const entry = WMO_CODES[code];
+  if (!entry) return 'clear';
+  const icon = entry.icon;
+  if (icon.includes('sun')) return 'clear';
+  if (icon.includes('drizzle')) return 'drizzle';
+  if (icon.includes('rain') || icon.includes('shower')) return 'rain';
+  if (icon.includes('snow')) return 'snow';
+  if (icon.includes('storm')) return 'storm';
+  if (icon.includes('fog')) return 'fog';
+  if (icon.includes('cloud')) return 'cloudy';
+  return 'clear';
+}
+
+// ─────────────────────────────────────────────
+// Ana Sayfa Render
+// ─────────────────────────────────────────────
+
+/**
+ * Ana sayfayı (kart listesi) render eder.
+ */
+function renderHome() {
+  const container = document.getElementById('members-list');
+  if (!container) return;
+
+  const settings = getSettings();
+
+  if (state.members.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🌤️</div>
+        <div class="empty-state-title">Henüz kimse yok</div>
+        <div class="empty-state-text">Aile üyelerini eklemek için yukarıdaki + butonuna bas.</div>
+      </div>
+    `;
+    updateFooter();
+    return;
+  }
+
+  container.innerHTML = state.members
+    .sort((a, b) => a.order - b.order)
+    .map(member => renderMemberCard(member, settings))
+    .join('');
+
+  // "Aile üyesi ekle" butonu — max 4 üye
+  if (state.members.length < 4) {
+    container.innerHTML += `
+      <button class="card-add" id="card-add-btn" aria-label="Yeni aile üyesi ekle">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Aile Üyesi Ekle
+      </button>
+    `;
+  }
+
+  updateFooter();
+}
+
+/**
+ * Tek bir aile üyesi kartı HTML'i üretir.
+ * @param {import('./models.js').FamilyMember} member
+ * @param {import('./models.js').Settings} settings
+ * @returns {string} HTML string
+ */
+function renderMemberCard(member, settings) {
+  const wd = state.weatherData[member.id];
+
+  if (!wd) {
+    // Yükleniyor durumu
+    return `
+      <div class="family-card" data-member-id="${member.id}" tabindex="0" role="button" aria-label="${member.name}, ${member.city} için hava durumu yükleniyor">
+        <div class="card-header">
+          <div class="card-identity">
+            <div class="card-avatar" aria-hidden="true">${member.avatar}</div>
+            <div>
+              <div class="card-name">${escHtml(member.name)}</div>
+              <div class="card-city">${escHtml(member.city)}</div>
+            </div>
+          </div>
+          <button class="card-edit-btn" data-edit-id="${member.id}" aria-label="${member.name} düzenle" tabindex="0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+            </svg>
+          </button>
+        </div>
+        <div class="card-loading">
+          <div class="loading-dots" aria-label="Yükleniyor"><span></span><span></span><span></span></div>
+          Hava verisi alınıyor...
+        </div>
+      </div>
+    `;
+  }
+
+  if (wd.error) {
+    // Hata durumu
+    return `
+      <div class="family-card" data-member-id="${member.id}" tabindex="0" role="button" aria-label="${member.name}, ${member.city} — hata">
+        <div class="card-header">
+          <div class="card-identity">
+            <div class="card-avatar" aria-hidden="true">${member.avatar}</div>
+            <div>
+              <div class="card-name">${escHtml(member.name)}</div>
+              <div class="card-city">${escHtml(member.city)}</div>
+            </div>
+          </div>
+          <button class="card-edit-btn" data-edit-id="${member.id}" aria-label="${member.name} düzenle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+            </svg>
+          </button>
+        </div>
+        <div class="card-error">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Veri alınamadı — ${escHtml(wd.error)}
+        </div>
+      </div>
+    `;
+  }
+
+  const { current } = wd;
+  const temp    = formatTemp(current.temperature, settings.unit);
+  const desc    = getWeatherLabel(current.weatherCode);
+  const iconCat = codeToIconCategory(current.weatherCode);
+  const aiTip   = wd.aiAdvice;
+
+  return `
+    <div class="family-card" data-member-id="${member.id}" tabindex="0" role="button"
+         aria-label="${member.name}, ${member.city}: ${temp}, ${desc}">
+      <!-- Üst: kimlik + düzenle -->
+      <div class="card-header">
+        <div class="card-identity">
+          <div class="card-avatar" aria-hidden="true">${member.avatar}</div>
+          <div>
+            <div class="card-name">${escHtml(member.name)}</div>
+            <div class="card-city">${escHtml(member.city)}</div>
+          </div>
+        </div>
+        <button class="card-edit-btn" data-edit-id="${member.id}" aria-label="${member.name} düzenle" tabindex="0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Orta: hava -->
+      <div class="card-weather">
+        <div class="card-weather-icon">
+          ${getWeatherSVG(iconCat, 52)}
+        </div>
+        <div>
+          <div class="card-temp">${temp}</div>
+          <div class="card-desc">${desc}</div>
+        </div>
+      </div>
+
+      <!-- Alt: metrikler -->
+      <div class="card-metrics">
+        <span class="metric-chip" title="Nem">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+          </svg>
+          %${current.humidity}
+        </span>
+        <span class="metric-chip" title="Rüzgar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+          </svg>
+          ${Math.round(current.windSpeed)} km/s
+        </span>
+        <span class="metric-chip" title="UV İndeksi">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          UV ${current.uvIndex}
+        </span>
+        ${current.precipitationProbability > 0 ? `
+        <span class="metric-chip" title="Yağış ihtimali">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="8" y1="19" x2="8" y2="21"/><line x1="8" y1="13" x2="8" y2="15"/>
+            <line x1="16" y1="19" x2="16" y2="21"/><line x1="16" y1="13" x2="16" y2="15"/>
+            <line x1="12" y1="21" x2="12" y2="23"/><line x1="12" y1="15" x2="12" y2="17"/>
+            <path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/>
+          </svg>
+          %${current.precipitationProbability}
+        </span>` : ''}
+      </div>
+
+      <!-- AI öneri chip -->
+      ${aiTip ? `
+        <div class="ai-chip ${aiTip.level || ''}" role="note" aria-label="AI önerisi">
+          💡 ${escHtml(aiTip.advice.split('\n')[0].slice(0, 60))}
+        </div>
+      ` : ''}
+
+      <!-- Detay linki -->
+      <div class="card-detail-link" aria-hidden="true">
+        Detay
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Ana sayfa footer'ını günceller (son güncelleme zamanı).
+ */
+function updateFooter() {
+  const footer = document.getElementById('home-footer');
+  if (!footer) return;
+
+  if (state.lastUpdate === 0) {
+    footer.textContent = 'Son güncelleme: —';
+    return;
+  }
+
+  const d = new Date(state.lastUpdate);
+  const saat = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  footer.textContent = `Son güncelleme: ${saat}`;
+}
+
+// ─────────────────────────────────────────────
+// Detay Sayfası Render
+// ─────────────────────────────────────────────
+
+/**
+ * Detay sayfasını render eder.
+ * @param {string} memberId
+ */
+async function renderDetail(memberId) {
+  const member = state.members.find(m => m.id === memberId);
+  if (!member) { showView('home', 'left'); return; }
+
+  state.selectedMemberId = memberId;
+  showView('detail', 'right');
+
+  const settings = getSettings();
+  const wd       = state.weatherData[memberId];
+
+  // Kimlik bilgisi
+  document.getElementById('detail-avatar').textContent = member.avatar;
+  document.getElementById('detail-name').textContent   = member.name;
+  document.getElementById('detail-city').textContent   = member.city;
+
+  if (!wd || wd.error || !wd.current) {
+    document.getElementById('detail-temp').textContent   = '—';
+    document.getElementById('detail-feels').textContent  = (wd && wd.error) ? wd.error : 'Veri yüklenemedi';
+    document.getElementById('detail-desc').textContent   = '';
+    document.getElementById('detail-icon').innerHTML     = '';
+    document.getElementById('detail-metrics').innerHTML  = '';
+    document.getElementById('forecast-scroll').innerHTML = '';
+    const aiText = document.getElementById('ai-text');
+    if (aiText) aiText.textContent = 'Hava verisi olmadan öneri üretilemiyor.';
+    return;
+  }
+
+  const { current, forecast } = wd;
+  const temp     = formatTemp(current.temperature, settings.unit);
+  const tempAppr = formatTemp(current.apparentTemperature, settings.unit);
+  const desc     = getWeatherLabel(current.weatherCode);
+  const iconCat  = codeToIconCategory(current.weatherCode);
+
+  // Büyük hava
+  document.getElementById('detail-icon').innerHTML     = getWeatherSVG(iconCat, 80);
+  document.getElementById('detail-temp').textContent   = temp;
+  document.getElementById('detail-feels').textContent  = `Hissedilen: ${tempAppr}`;
+  document.getElementById('detail-desc').textContent   = desc;
+
+  // Metrik grid
+  document.getElementById('detail-metrics').innerHTML = `
+    <div class="detail-metric-card">
+      <div class="detail-metric-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+        </svg>
+        Nem
+      </div>
+      <div class="detail-metric-value">%${current.humidity}</div>
+    </div>
+    <div class="detail-metric-card">
+      <div class="detail-metric-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+        </svg>
+        Rüzgar
+      </div>
+      <div class="detail-metric-value">${Math.round(current.windSpeed)} km/s</div>
+    </div>
+    <div class="detail-metric-card">
+      <div class="detail-metric-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        </svg>
+        UV İndeksi
+      </div>
+      <div class="detail-metric-value">${current.uvIndex}</div>
+    </div>
+    <div class="detail-metric-card">
+      <div class="detail-metric-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/>
+          <line x1="8" y1="19" x2="8" y2="21"/><line x1="16" y1="19" x2="16" y2="21"/>
+        </svg>
+        Yağış İhtimali
+      </div>
+      <div class="detail-metric-value">%${current.precipitationProbability || 0}</div>
+    </div>
+    <div class="detail-metric-card">
+      <div class="detail-metric-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Basınç
+      </div>
+      <div class="detail-metric-value">${Math.round(current.pressure)} hPa</div>
+    </div>
+    <div class="detail-metric-card">
+      <div class="detail-metric-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        Görünürlük
+      </div>
+      <div class="detail-metric-value">${(current.visibility / 1000).toFixed(1)} km</div>
+    </div>
+  `;
+
+  // 5 Günlük Tahmin
+  const bugun = new Date().toISOString().slice(0, 10);
+  document.getElementById('forecast-scroll').innerHTML = forecast.map(day => {
+    const tarih    = new Date(day.date + 'T12:00:00');
+    const gunAdi   = GUN_ADLARI_KISA[tarih.getDay()];
+    const maxTemp  = formatTemp(day.maxTemp, settings.unit);
+    const minTemp  = formatTemp(day.minTemp, settings.unit);
+    const isToday  = day.date === bugun;
+    const cat      = codeToIconCategory(day.weatherCode);
+
+    return `
+      <div class="forecast-day ${isToday ? 'today' : ''}" role="listitem" aria-label="${gunAdi}: ${maxTemp} / ${minTemp}">
+        <div class="forecast-day-name">${isToday ? 'Bugün' : gunAdi}</div>
+        <div class="forecast-day-icon">${getWeatherSVG(cat, 32)}</div>
+        <div class="forecast-day-max">${maxTemp}</div>
+        <div class="forecast-day-min">${minTemp}</div>
+        ${day.precipitationProbability > 0
+          ? `<div class="forecast-day-precip">%${day.precipitationProbability}</div>`
+          : ''}
+      </div>
+    `;
+  }).join('');
+
+  // AI Öneri Yükle
+  await loadAIAdvice(memberId, current);
+}
+
+/**
+ * Detay sayfasında AI önerisini yükler ve gösterir.
+ * @param {string} memberId
+ * @param {import('./models.js').WeatherData} current
+ * @param {boolean} [forceRefresh=false]
+ */
+async function loadAIAdvice(memberId, current, forceRefresh = false) {
+  const member   = state.members.find(m => m.id === memberId);
+  if (!member || !current) return;
+
+  const aiText  = document.getElementById('ai-text');
+  const aiBadge = document.getElementById('ai-badge');
+  if (!aiText || !aiBadge) return;
+
+  aiText.innerHTML = `
+    <div class="card-loading">
+      <div class="loading-dots" aria-label="Yükleniyor"><span></span><span></span><span></span></div>
+      AI öneri hazırlanıyor...
+    </div>
+  `;
+
+  // weatherDescription ekle (API yoktu)
+  const enriched = {
+    ...current,
+    weatherDescription: getWeatherLabel(current.weatherCode),
+  };
+
+  try {
+    const result = await getAIAdvice(enriched, member.name, forceRefresh);
+
+    // State'e kaydet
+    if (state.weatherData[memberId]) {
+      state.weatherData[memberId].aiAdvice = result;
+    }
+
+    aiText.textContent = result.advice;
+
+    aiBadge.textContent = result.isAI ? 'Gemini AI' : 'Kural Motoru';
+    aiBadge.className   = `detail-ai-badge${result.isAI ? '' : ' rule'}`;
+
+  } catch (err) {
+    console.error('[AI] Öneri yüklenemedi:', err);
+    aiText.textContent  = '⚠️ Öneri alınamadı. Lütfen tekrar deneyin.';
+    aiBadge.textContent = 'Hata';
+  }
+}
+
+// ─────────────────────────────────────────────
+// Ayarlar Render
+// ─────────────────────────────────────────────
+
+/**
+ * Ayarlar ekranını mevcut değerlerle doldurur.
+ */
+function renderSettings() {
+  const settings = getSettings();
+
+  // Sıcaklık birimi
+  document.getElementById('unit-celsius').classList.toggle('active', settings.unit === 'celsius');
+  document.getElementById('unit-celsius').setAttribute('aria-pressed', String(settings.unit === 'celsius'));
+  document.getElementById('unit-fahrenheit').classList.toggle('active', settings.unit === 'fahrenheit');
+  document.getElementById('unit-fahrenheit').setAttribute('aria-pressed', String(settings.unit === 'fahrenheit'));
+
+  // Önbellek TTL
+  const ttlInput = document.getElementById('cache-ttl');
+  const ttlValue = document.getElementById('cache-ttl-value');
+  if (ttlInput && ttlValue) {
+    ttlInput.value       = settings.cacheTTL;
+    ttlValue.textContent = `${settings.cacheTTL} dk`;
+  }
+
+  // API anahtarı durumu
+  updateApiKeyStatus();
+}
+
+/**
+ * API anahtarı durum göstergesini günceller.
+ */
+function updateApiKeyStatus() {
+  const hasKey     = Boolean(getApiKey());
+  const statusEl   = document.getElementById('api-key-status');
+  const statusText = document.getElementById('api-key-status-text');
+
+  if (statusEl && statusText) {
+    statusEl.className  = `api-key-status ${hasKey ? 'set' : 'unset'}`;
+    statusText.textContent = hasKey
+      ? 'API anahtarı kayıtlı — Gemini AI aktif ✓'
+      : 'API anahtarı girilmemiş — kural tabanlı öneriler kullanılıyor';
+  }
+}
+
+// ─────────────────────────────────────────────
+// Modal Yönetimi
+// ─────────────────────────────────────────────
+
+/**
+ * Üye ekleme/düzenleme modalını açar.
+ * @param {string|null} [editId=null] - Düzenlenecek üye ID'si (null = yeni)
+ */
+function openModal(editId = null) {
+  state.editingMemberId = editId;
+  const modal    = document.getElementById('modal-member');
+  const title    = document.getElementById('modal-title');
+  const nameInp  = document.getElementById('input-name');
+  const cityInp  = document.getElementById('input-city');
+  const cityHint = document.getElementById('city-hint');
+  const delSec   = document.getElementById('modal-delete-section');
+
+  if (!modal) return;
+
+  // Avatar grid'i doldur
+  renderAvatarGrid();
+
+  if (editId) {
+    const member = state.members.find(m => m.id === editId);
+    if (!member) return;
+    title.textContent    = `${member.name} Düzenle`;
+    nameInp.value        = member.name;
+    cityInp.value        = member.city;
+    delSec.style.display = 'block';
+    // Seçili avatarı işaretle
+    setSelectedAvatar(member.avatar);
+  } else {
+    title.textContent    = 'Aile Üyesi Ekle';
+    nameInp.value        = '';
+    cityInp.value        = '';
+    delSec.style.display = 'none';
+    setSelectedAvatar(AVATARS[0]);
+  }
+
+  cityHint.className   = 'form-hint';
+  cityHint.innerHTML   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    Şehri yazıp kaydet'e bas — otomatik doğrulanacak`;
+
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+
+  // Erişilebilirlik: focus'u input'a taşı
+  setTimeout(() => nameInp.focus(), 100);
+}
+
+/**
+ * Modalı kapatır.
+ */
+function closeModal() {
+  const modal = document.getElementById('modal-member');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+  state.editingMemberId = null;
+}
+
+/**
+ * Avatar seçim grid'ini render eder.
+ */
+function renderAvatarGrid() {
+  const grid = document.getElementById('avatar-grid');
+  if (!grid) return;
+
+  grid.innerHTML = AVATARS.map(emoji => `
+    <button
+      class="avatar-option"
+      data-avatar="${emoji}"
+      aria-label="${emoji} avatarı seç"
+      type="button"
+    >${emoji}</button>
+  `).join('');
+}
+
+/**
+ * Belirtilen avatarı seçili olarak işaretler.
+ * @param {string} avatar
+ */
+function setSelectedAvatar(avatar) {
+  const grid = document.getElementById('avatar-grid');
+  if (!grid) return;
+  grid.querySelectorAll('.avatar-option').forEach(btn => {
+    const isSelected = btn.dataset.avatar === avatar;
+    btn.classList.toggle('selected', isSelected);
+    btn.setAttribute('aria-pressed', String(isSelected));
+  });
+}
+
+/**
+ * Seçili avatar emoji'yi döner.
+ * @returns {string}
+ */
+function getSelectedAvatar() {
+  const selected = document.querySelector('.avatar-option.selected');
+  return selected?.dataset.avatar || AVATARS[0];
+}
+
+// ─────────────────────────────────────────────
+// Modal Kaydet
+// ─────────────────────────────────────────────
+
+/**
+ * Modal form'unu doğrular ve üyeyi kaydeder.
+ */
+async function handleModalSave() {
+  const nameInp  = document.getElementById('input-name');
+  const cityInp  = document.getElementById('input-city');
+  const cityHint = document.getElementById('city-hint');
+  const saveBtn  = document.getElementById('btn-modal-save');
+
+  const name = nameInp.value.trim();
+  const city = cityInp.value.trim();
+
+  if (!name) {
+    nameInp.classList.add('error');
+    nameInp.focus();
+    showToast('❗ İsim boş bırakılamaz');
+    return;
+  }
+
+  if (!city) {
+    cityInp.classList.add('error');
+    cityHint.className   = 'form-hint error';
+    cityHint.textContent = 'Şehir adı boş bırakılamaz';
+    cityInp.focus();
+    return;
+  }
+
+  // Butonu devre dışı bırak
+  saveBtn.disabled     = true;
+  saveBtn.textContent  = 'Doğrulanıyor...';
+  cityHint.className   = 'form-hint';
+  cityHint.innerHTML   = `<div class="loading-dots"><span></span><span></span><span></span></div> Şehir doğrulanıyor...`;
+  nameInp.classList.remove('error');
+  cityInp.classList.remove('error');
+
+  try {
+    const geo    = await geocodeCity(city);
+    const avatar = getSelectedAvatar();
+
+    if (state.editingMemberId) {
+      updateMember(state.editingMemberId, {
+        name,
+        city,
+        cityNormalized: geo.name,
+        latitude:       geo.latitude,
+        longitude:      geo.longitude,
+        avatar,
+      });
+      // Önbelleği temizle (eski konum)
+      delete state.weatherData[state.editingMemberId];
+    } else {
+      addMember({
+        name,
+        city,
+        cityNormalized: geo.name,
+        latitude:       geo.latitude,
+        longitude:      geo.longitude,
+        avatar,
+      });
+    }
+
+    cityHint.className   = 'form-hint success';
+    cityHint.innerHTML   = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      ${geo.name}, ${geo.country} bulundu ✓
+    `;
+
+    setTimeout(async () => {
+      closeModal();
+      await loadAllData();
+    }, 600);
+
+  } catch (err) {
+    console.error('[Modal] Şehir doğrulama hatası:', err);
+    cityInp.classList.add('error');
+    cityHint.className   = 'form-hint error';
+    cityHint.textContent = err.message || 'Şehir bulunamadı';
+    showToast('❗ ' + (err.message || 'Şehir bulunamadı'));
+  } finally {
+    saveBtn.disabled    = false;
+    saveBtn.innerHTML   = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Kaydet
+    `;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Veri Yükleme
+// ─────────────────────────────────────────────
+
+/**
+ * Tüm aile üyelerini ve hava verilerini yükler.
+ * @param {boolean} [showLoader=true]
+ */
+async function loadAllData(showLoader = true) {
+  state.members = getMembers();
+
+  if (showLoader) {
+    // Kartları yükleniyor durumunda göster
+    state.members.forEach(m => {
+      state.weatherData[m.id] = null;
+    });
+    renderHome();
+  }
+
+  if (state.members.length === 0) {
+    renderHome();
+    return;
+  }
+
+  state.isRefreshing = true;
+  setRefreshIcon(true);
+
+  try {
+    const results = await fetchAllWeather(state.members);
+
+    results.forEach(({ member, current, forecast, error }) => {
+      state.weatherData[member.id] = { current, forecast, error };
+    });
+
+    state.lastUpdate = Date.now();
+    renderHome();
+
+    // Ana sayfada AI chip'leri için arka planda önerileri çek
+    results.forEach(({ member, current, error }) => {
+      if (!error && current) {
+        getAIAdvice({ ...current, weatherDescription: getWeatherLabel(current.weatherCode) }, member.name)
+          .then(result => {
+            if (state.weatherData[member.id]) {
+              state.weatherData[member.id].aiAdvice = result;
+              // Sadece ana sayfadaysak yeniden render et
+              if (state.currentView === 'home') renderHome();
+            }
+          })
+          .catch(() => {});
+      }
+    });
+
+  } catch (err) {
+    console.error('[App] Genel veri yükleme hatası:', err);
+    showToast('❗ Veriler güncellenirken hata oluştu');
+  } finally {
+    state.isRefreshing = false;
+    setRefreshIcon(false);
+  }
+}
+
+/**
+ * Yenile butonunun ikonunu döndürür / durdurur.
+ * @param {boolean} spinning
+ */
+function setRefreshIcon(spinning) {
+  const btn = document.getElementById('btn-refresh');
+  if (!btn) return;
+  const svg = btn.querySelector('svg');
+  if (svg) svg.classList.toggle('spinning', spinning);
+}
+
+// ─────────────────────────────────────────────
+// Yardımcı — HTML Escape (XSS önlemi)
+// ─────────────────────────────────────────────
+
+/**
+ * Kullanıcı girdisini HTML için güvenli hale getirir.
+ * @param {string} str
+ * @returns {string}
+ */
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ─────────────────────────────────────────────
+// Event Listener'lar
+// ─────────────────────────────────────────────
+
+/**
+ * Tüm event listener'ları kurar.
+ */
+function setupEventListeners() {
+
+  // ── Header Butonları ──
+  document.getElementById('btn-add-member')?.addEventListener('click', () => openModal());
+  document.getElementById('btn-refresh')?.addEventListener('click', () => {
+    if (!state.isRefreshing) loadAllData(false);
+  });
+
+  // ── Kartlara Tıklama (Event Delegation) ──
+  document.getElementById('members-list')?.addEventListener('click', (e) => {
+    // Düzenle butonu
+    const editBtn = e.target.closest('[data-edit-id]');
+    if (editBtn) {
+      e.stopPropagation();
+      openModal(editBtn.dataset.editId);
+      return;
+    }
+    // Kart tıklama → detay
+    const card = e.target.closest('.family-card[data-member-id]');
+    if (card) renderDetail(card.dataset.memberId);
+
+    // Ekle butonu
+    if (e.target.closest('#card-add-btn')) openModal();
+  });
+
+  // Klavye desteği (kart navigasyonu)
+  document.getElementById('members-list')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const card = e.target.closest('.family-card[data-member-id]');
+      if (card) { e.preventDefault(); renderDetail(card.dataset.memberId); }
+    }
+  });
+
+  // ── Geri Butonu ──
+  document.getElementById('btn-back')?.addEventListener('click', () => showView('home', 'left'));
+  document.getElementById('btn-settings-back')?.addEventListener('click', () => showView('home', 'left'));
+
+  // ── Ayarlar ──
+  document.getElementById('btn-settings')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    renderSettings();
+    showView('settings', 'right');
+  });
+
+  // Sıcaklık birimi toggle
+  document.getElementById('unit-celsius')?.addEventListener('click', () => {
+    saveSettings({ unit: 'celsius' });
+    renderSettings();
+    renderHome();
+  });
+  document.getElementById('unit-fahrenheit')?.addEventListener('click', () => {
+    saveSettings({ unit: 'fahrenheit' });
+    renderSettings();
+    renderHome();
+  });
+
+  // Önbellek TTL kaydırma
+  document.getElementById('cache-ttl')?.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10);
+    document.getElementById('cache-ttl-value').textContent = `${val} dk`;
+    saveSettings({ cacheTTL: val });
+  });
+
+  // API Anahtarı Kaydet
+  document.getElementById('btn-save-api-key')?.addEventListener('click', () => {
+    const input = document.getElementById('api-key-input');
+    const key   = input?.value.trim();
+    if (!key) { showToast('❗ API anahtarı boş'); return; }
+    if (!key.startsWith('AIza')) { showToast('❗ Geçersiz Gemini API anahtarı formatı'); return; }
+    if (saveApiKey(key)) {
+      input.value = '';
+      updateApiKeyStatus();
+      showToast('✅ API anahtarı kaydedildi');
+    } else {
+      showToast('❗ Anahtar kaydedilemedi');
+    }
+  });
+
+  // Enter ile API anahtarı kaydet
+  document.getElementById('api-key-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-save-api-key')?.click();
+  });
+
+  // Verileri Sıfırla
+  document.getElementById('btn-reset-data')?.addEventListener('click', () => {
+    if (!confirm('Tüm aile üyeleri ve ayarlar silinecek. Emin misin?')) return;
+    resetAllData();
+    state.members     = [];
+    state.weatherData = {};
+    state.lastUpdate  = 0;
+    renderHome();
+    showView('home', 'left');
+    showToast('🗑️ Tüm veriler silindi');
+  });
+
+  // PWA Güncelle
+  document.getElementById('btn-update-pwa')?.addEventListener('click', () => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) {
+          reg.update();
+          navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    }
+    showToast('🔄 Güncelleme kontrol ediliyor...');
+  });
+
+  // ── Modal ──
+  document.getElementById('modal-close')?.addEventListener('click', closeModal);
+  document.getElementById('btn-modal-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('btn-modal-save')?.addEventListener('click', handleModalSave);
+
+  // Modal dışına tıklama ile kapat
+  document.getElementById('modal-member')?.addEventListener('click', (e) => {
+    if (e.target.id === 'modal-member') closeModal();
+  });
+
+  // Enter ile modal kaydet
+  document.getElementById('input-city')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleModalSave();
+  });
+  document.getElementById('input-name')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('input-city')?.focus();
+    // Hata sınıfını temizle
+    e.target.classList.remove('error');
+  });
+  document.getElementById('input-city')?.addEventListener('input', (e) => {
+    e.target.classList.remove('error');
+  });
+
+  // Avatar Seçimi
+  document.getElementById('avatar-grid')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.avatar-option');
+    if (btn) setSelectedAvatar(btn.dataset.avatar);
+  });
+
+  // Üye Sil
+  document.getElementById('btn-delete-member')?.addEventListener('click', () => {
+    if (!state.editingMemberId) return;
+    const member = state.members.find(m => m.id === state.editingMemberId);
+    if (!member) return;
+    if (!confirm(`${member.name} silinsin mi?`)) return;
+
+    deleteMember(state.editingMemberId);
+    delete state.weatherData[state.editingMemberId];
+    closeModal();
+    state.members = getMembers();
+    renderHome();
+    showToast(`🗑️ ${member.name} silindi`);
+  });
+
+  // ── Detay sayfası ──
+  document.getElementById('btn-ai-refresh')?.addEventListener('click', () => {
+    if (!state.selectedMemberId) return;
+    const wd = state.weatherData[state.selectedMemberId];
+    if (!wd?.current) return;
+    loadAIAdvice(state.selectedMemberId, wd.current, true);
+  });
+
+  // ── Klavye: Escape ile modal/detay kapat ──
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (document.getElementById('modal-member')?.classList.contains('open')) {
+        closeModal();
+      } else if (state.currentView !== 'home') {
+        showView('home', 'left');
+      }
+    }
+  });
+
+  // ── Offline / Online Algılama ──
+  window.addEventListener('offline', () => {
+    document.getElementById('offline-banner')?.classList.add('visible');
+  });
+  window.addEventListener('online', () => {
+    document.getElementById('offline-banner')?.classList.remove('visible');
+    showToast('📶 Bağlantı yeniden kuruldu');
+    if (!state.isRefreshing) loadAllData(false);
+  });
+
+  // SW güncellemesi
+  document.addEventListener('sw-update-available', () => {
+    showToast('🔄 Yeni sürüm mevcut — ayarlardan güncelleyebilirsin', 6000);
+  });
+
+  // Eski veri bildirimi
+  document.addEventListener('stale-data', () => {
+    showToast('⚠️ Çevrimdışısın — eski veriler gösteriliyor', 4000);
+  });
+
+  // ── Hash tabanlı routing ──
+  window.addEventListener('hashchange', handleHashChange);
+}
+
+/**
+ * URL hash değişimini işler.
+ */
+function handleHashChange() {
+  const hash = window.location.hash;
+
+  if (hash.startsWith('#detail/')) {
+    const id = hash.slice(8);
+    if (id && state.members.find(m => m.id === id)) {
+      renderDetail(id);
+    }
+  } else if (hash === '#settings') {
+    renderSettings();
+    showView('settings', 'right');
+  } else {
+    showView('home', 'left');
+  }
+}
+
+// ─────────────────────────────────────────────
+// Uygulama Başlatma
+// ─────────────────────────────────────────────
+
+/**
+ * Uygulamayı başlatır.
+ */
+async function init() {
+  // Event listener'ları kur
+  setupEventListeners();
+
+  // İlk görünüm
+  showView('home');
+
+  // Veriyi yükle
+  await loadAllData();
+
+  // API anahtarı yoksa ayarlar ekranını göster
+  if (!getApiKey() && getMembers().length === 0) {
+    // İlk açılış — ana sayfayı göster
+  }
+
+  // Offline durumu kontrol et
+  if (!navigator.onLine) {
+    document.getElementById('offline-banner')?.classList.add('visible');
+  }
+}
+
+// ─── Başlat ───
+init().catch(err => console.error('[App] Başlatma hatası:', err));

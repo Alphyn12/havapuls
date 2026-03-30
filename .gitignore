@@ -1,0 +1,25 @@
+# Claude Code yerel ayarları
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Geliştirme araçları
+.agents/
+HAVAPULS_PROMPT.md
+Adsız.png
+
+# Node (eğer ileride kullanılırsa)
+node_modules/
+npm-debug.log*

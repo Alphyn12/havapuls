@@ -1,0 +1,237 @@
+/* ─────────────────────────────────────────────
+   HavaPuls — Animasyonlar
+   Tüm CSS animasyonları ve geçişler
+───────────────────────────────────────────── */
+
+/* ─── Loading Dot Pulse ─── */
+@keyframes pulse-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%           { transform: scale(1);   opacity: 1;   }
+}
+
+/* ─── Kart Fade-in + Slide-up (Staggered) ─── */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.family-card,
+.forecast-day,
+.detail-metric-card {
+  animation: fade-in-up 0.3s ease-out both;
+}
+
+/* Her kartı 100ms geciktir */
+.family-card:nth-child(1)  { animation-delay: 0ms;  }
+.family-card:nth-child(2)  { animation-delay: 100ms; }
+.family-card:nth-child(3)  { animation-delay: 200ms; }
+.family-card:nth-child(4)  { animation-delay: 300ms; }
+.family-card:nth-child(5)  { animation-delay: 400ms; }
+
+.forecast-day:nth-child(1) { animation-delay: 0ms;   }
+.forecast-day:nth-child(2) { animation-delay: 80ms;  }
+.forecast-day:nth-child(3) { animation-delay: 160ms; }
+.forecast-day:nth-child(4) { animation-delay: 240ms; }
+.forecast-day:nth-child(5) { animation-delay: 320ms; }
+
+/* ─── Sıcaklık Sayı Flip Animasyonu ─── */
+@keyframes temp-flip {
+  0%   { transform: rotateX(0deg);    opacity: 1; }
+  50%  { transform: rotateX(-90deg);  opacity: 0; }
+  51%  { transform: rotateX(90deg);   opacity: 0; }
+  100% { transform: rotateX(0deg);    opacity: 1; }
+}
+
+.temp-updating {
+  animation: temp-flip 0.5s ease-in-out;
+  display: inline-block;
+  perspective: 200px;
+}
+
+/* ─── View Geçişleri ─── */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+@keyframes slide-out-left {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(-100%); opacity: 0; }
+}
+
+@keyframes slide-out-right {
+  from { transform: translateX(0);   opacity: 1; }
+  to   { transform: translateX(100%); opacity: 0; }
+}
+
+.view-enter-right { animation: slide-in-right 0.3s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.view-enter-left  { animation: slide-in-left  0.3s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.view-exit-left   { animation: slide-out-left  0.3s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.view-exit-right  { animation: slide-out-right 0.3s cubic-bezier(0.32, 0.72, 0, 1) both; }
+
+/* ─── Hava İkonu Animasyonları ─── */
+
+/* Güneş — Sürekli yavaş dönüş */
+@keyframes sun-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.icon-sun-rays {
+  animation: sun-rotate 12s linear infinite;
+  transform-origin: center;
+}
+
+/* Güneş — Nabız (pulse) */
+@keyframes sun-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%       { transform: scale(1.08); opacity: 0.9; }
+}
+
+.icon-sun-core {
+  animation: sun-pulse 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Bulut — Yatay sallantı */
+@keyframes cloud-float {
+  0%, 100% { transform: translateX(0px);  }
+  50%       { transform: translateX(4px); }
+}
+
+.icon-cloud {
+  animation: cloud-float 4s ease-in-out infinite;
+}
+
+.icon-cloud-back {
+  animation: cloud-float 4s ease-in-out infinite;
+  animation-delay: -1s;
+}
+
+/* Yağmur Damlaları — Aşağı kayma */
+@keyframes rain-drop {
+  0%   { transform: translateY(-4px); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(8px);  opacity: 0; }
+}
+
+.icon-rain-drop-1 { animation: rain-drop 1.2s ease-in infinite;           }
+.icon-rain-drop-2 { animation: rain-drop 1.2s ease-in infinite 0.2s;      }
+.icon-rain-drop-3 { animation: rain-drop 1.2s ease-in infinite 0.4s;      }
+.icon-rain-drop-4 { animation: rain-drop 1.2s ease-in infinite 0.6s;      }
+
+/* Kar Taneleri — Düşme + dönme */
+@keyframes snow-fall {
+  0%   { transform: translateY(-4px) rotate(0deg);   opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(10px) rotate(180deg); opacity: 0; }
+}
+
+.icon-snow-flake-1 { animation: snow-fall 2s ease-in infinite;        }
+.icon-snow-flake-2 { animation: snow-fall 2s ease-in infinite 0.5s;   }
+.icon-snow-flake-3 { animation: snow-fall 2s ease-in infinite 1s;     }
+
+/* Fırtına — Şimşek blink */
+@keyframes lightning-flash {
+  0%, 90%, 100% { opacity: 1; }
+  92%, 96%      { opacity: 0.2; }
+  94%, 98%      { opacity: 1; }
+}
+
+.icon-lightning {
+  animation: lightning-flash 3s ease-in-out infinite;
+}
+
+/* Sis — Yatay kayma */
+@keyframes fog-drift {
+  0%, 100% { transform: translateX(0);   opacity: 0.7; }
+  50%       { transform: translateX(4px); opacity: 1; }
+}
+
+.icon-fog-line-1 { animation: fog-drift 3s ease-in-out infinite; }
+.icon-fog-line-2 { animation: fog-drift 3s ease-in-out infinite 0.5s; }
+.icon-fog-line-3 { animation: fog-drift 3s ease-in-out infinite 1s; }
+
+/* ─── Yenile Butonu Spin ─── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spinning { animation: spin 0.8s linear infinite; }
+
+/* ─── Genel Fade-in ─── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.view.active {
+  animation: fade-in 0.25s ease-out both;
+}
+
+/* ─── Skeleton Loading ─── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--clr-surface) 25%,
+    var(--clr-surface-2) 50%,
+    var(--clr-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-inner);
+}
+
+.skeleton-text {
+  height: 14px;
+  width: 60%;
+  margin-bottom: 8px;
+}
+
+.skeleton-temp {
+  height: 36px;
+  width: 80px;
+}
+
+/* ─── Bounce-in (Modal aç) ─── */
+@keyframes modal-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ─── Başarı Animasyonu ─── */
+@keyframes success-pop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.1); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+.success-icon { animation: success-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* ─── Azaltılmış Hareket (Erişilebilirlik) ─── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

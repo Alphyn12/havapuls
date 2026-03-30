@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>HavaPuls — İkon Üretici</title>
+  <style>
+    body { font-family: sans-serif; background: #0a0e1a; color: #f1f5f9; padding: 32px; }
+    h1 { margin-bottom: 8px; }
+    p  { color: #94a3b8; margin-bottom: 24px; }
+    .canvases { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+    canvas { border: 1px solid #1e293b; border-radius: 8px; }
+    button {
+      background: #3b82f6; color: #fff; border: none; border-radius: 8px;
+      padding: 12px 24px; font-size: 1rem; cursor: pointer; margin-right: 8px;
+    }
+    button:hover { background: #2563eb; }
+    .note { color: #f59e0b; margin-top: 16px; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+
+<h1>HavaPuls İkon Üretici</h1>
+<p>Bu sayfa HavaPuls PWA için tüm PNG ikonları üretir. "Tüm İkonları İndir" butonuna bas.</p>
+
+<div class="canvases" id="canvases"></div>
+
+<button onclick="downloadAll()">⬇️ Tüm İkonları İndir</button>
+<button onclick="copyInstructions()">📋 Talimatları Kopyala</button>
+
+<p class="note">
+  ⚠️ İndirilen PNG dosyalarını <code>HavaPuls/icons/</code> klasörüne kopyala.
+</p>
+
+<script>
+const SIZES = [72, 96, 128, 144, 192, 512];
+
+/**
+ * HavaPuls logosunu canvas'a çizer.
+ * Mavi daire arka plan + beyaz hava termometre simgesi.
+ */
+function drawIcon(canvas, size) {
+  const ctx  = canvas.getContext('2d');
+  const cx   = size / 2;
+  const cy   = size / 2;
+  const r    = size / 2;
+
+  // Arka plan — koyu lacivert → mavi gradient
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, '#1d4ed8');
+  grad.addColorStop(1, '#0a0e1a');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Beyaz nabız (pulse) çizgisi
+  const margin = size * 0.12;
+  const lineY  = cy + size * 0.08;
+  const pw     = size * 0.76;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth   = size * 0.055;
+  ctx.lineJoin    = 'round';
+  ctx.lineCap     = 'round';
+
+  ctx.beginPath();
+  ctx.moveTo(cx - pw / 2, lineY);
+  ctx.lineTo(cx - pw * 0.27, lineY);
+  ctx.lineTo(cx - pw * 0.15, cy - size * 0.22);
+  ctx.lineTo(cx,             cy + size * 0.15);
+  ctx.lineTo(cx + pw * 0.15, lineY);
+  ctx.lineTo(cx + pw / 2,    lineY);
+  ctx.stroke();
+
+  // Termometre noktası (vurgu rengi)
+  ctx.fillStyle = '#60a5fa';
+  ctx.beginPath();
+  ctx.arc(cx, cy + size * 0.15, size * 0.06, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Canvas'ları oluştur
+function buildCanvases() {
+  const container = document.getElementById('canvases');
+  SIZES.forEach(size => {
+    const wrap = document.createElement('div');
+    wrap.style.textAlign = 'center';
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = size;
+    canvas.height = size;
+    canvas.id     = `canvas-${size}`;
+    canvas.style.width  = Math.min(size, 192) + 'px';
+    canvas.style.height = Math.min(size, 192) + 'px';
+
+    const label = document.createElement('div');
+    label.textContent  = `${size}×${size}`;
+    label.style.cssText = 'font-size:12px;color:#64748b;margin-top:4px;';
+
+    drawIcon(canvas, size);
+    wrap.appendChild(canvas);
+    wrap.appendChild(label);
+    container.appendChild(wrap);
+  });
+}
+
+// PNG olarak indir
+function downloadCanvas(size) {
+  const canvas = document.getElementById(`canvas-${size}`);
+  const link   = document.createElement('a');
+  link.download = `icon-${size}.png`;
+  link.href     = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function downloadAll() {
+  SIZES.forEach((size, i) => {
+    setTimeout(() => downloadCanvas(size), i * 200);
+  });
+}
+
+function copyInstructions() {
+  const text = `HavaPuls İkon Kurulum Talimatları:
+1. Bu sayfadan "Tüm İkonları İndir" butonuna bas
+2. İndirilen dosyaları HavaPuls/icons/ klasörüne kopyala:
+   - icon-72.png
+   - icon-96.png
+   - icon-128.png
+   - icon-144.png
+   - icon-192.png
+   - icon-512.png
+3. index.html'i tarayıcıda aç ve PWA kurulumunu test et`;
+
+  navigator.clipboard.writeText(text).then(() => alert('Talimatlar panoya kopyalandı!'));
+}
+
+buildCanvases();
+</script>
+</body>
+</html>
