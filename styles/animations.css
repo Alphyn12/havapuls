@@ -279,6 +279,199 @@
   50%       { opacity: 0.15; transform: translateX(5px); }
 }
 
+/* ─────────────────────────────────────────────
+   #8 — Animasyonlu Hava Arka Plan Katmanı
+   data-weather attribute'una göre CSS animasyon
+───────────────────────────────────────────── */
+
+/* ── Yağmur — Çapraz süpürme çizgileri ── */
+@keyframes rain-sweep-bg {
+  0%   { transform: translateY(-8%) translateX(0);  opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 0.8; }
+  100% { transform: translateY(108%) translateX(-3%); opacity: 0; }
+}
+
+#weather-bg-layer[data-weather="rain"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      168deg,
+      rgba(96,165,250,0.18) 0px, transparent 1px,
+      transparent 36px, rgba(96,165,250,0.12) 37px, transparent 38px,
+      transparent 72px
+    );
+  animation: rain-sweep-bg 0.9s linear infinite;
+}
+
+#weather-bg-layer[data-weather="rain"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      170deg,
+      rgba(96,165,250,0.1) 0px, transparent 1px,
+      transparent 52px, rgba(96,165,250,0.07) 53px, transparent 54px,
+      transparent 100px
+    );
+  animation: rain-sweep-bg 1.4s linear infinite 0.45s;
+}
+
+/* ── Çisinti (drizzle) — daha hafif yağmur ── */
+#weather-bg-layer[data-weather="drizzle"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      170deg,
+      rgba(125,211,252,0.12) 0px, transparent 1px,
+      transparent 48px
+    );
+  animation: rain-sweep-bg 1.4s linear infinite;
+}
+
+/* ── Kar — Düşen noktalar ── */
+@keyframes snow-fall-bg {
+  0%   { transform: translateY(-5%) rotate(0deg); opacity: 0; }
+  10%  { opacity: 0.8; }
+  100% { transform: translateY(108%) rotate(15deg); opacity: 0; }
+}
+
+#weather-bg-layer[data-weather="snow"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(186,230,253,0.65) 1.5px, transparent 1.5px),
+    radial-gradient(circle, rgba(186,230,253,0.45) 1px, transparent 1px);
+  background-size: 64px 64px, 108px 108px;
+  background-position: 0 0, 32px 32px;
+  animation: snow-fall-bg 5s linear infinite;
+}
+
+#weather-bg-layer[data-weather="snow"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(186,230,253,0.35) 1px, transparent 1px);
+  background-size: 80px 80px;
+  background-position: 20px 20px;
+  animation: snow-fall-bg 7s linear infinite 2.5s;
+}
+
+/* ── Güneşli / Açık — Sıcak radial gradient ── */
+@keyframes warm-glow {
+  0%, 100% { opacity: 0.08; transform: scale(1); }
+  50%       { opacity: 0.15; transform: scale(1.06); }
+}
+
+#weather-bg-layer[data-weather="clear"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 72% 8%, rgba(251,191,36,0.25) 0%, transparent 48%),
+    radial-gradient(ellipse at 20% 85%, rgba(249,115,22,0.1) 0%, transparent 40%);
+  animation: warm-glow 8s ease-in-out infinite;
+}
+
+/* ── Gece ── */
+@keyframes night-glow {
+  0%, 100% { opacity: 0.08; }
+  50%       { opacity: 0.14; }
+}
+
+#weather-bg-layer[data-weather="night"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 65% 6%, rgba(129,140,248,0.2) 0%, transparent 44%),
+    radial-gradient(ellipse at 10% 40%, rgba(99,102,241,0.08) 0%, transparent 35%);
+  animation: night-glow 9s ease-in-out infinite;
+}
+
+/* ── Bulutlu ── */
+@keyframes cloud-bg-drift {
+  0%, 100% { transform: translateX(0); opacity: 0.07; }
+  50%       { transform: translateX(6px); opacity: 0.12; }
+}
+
+#weather-bg-layer[data-weather="cloudy"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(148,163,184,0.18) 0%, transparent 40%),
+    radial-gradient(ellipse at 70% 60%, rgba(100,116,139,0.1) 0%, transparent 35%);
+  animation: cloud-bg-drift 8s ease-in-out infinite;
+}
+
+/* ── Fırtına — Titreyen mor-mavi ── */
+@keyframes storm-bg-flash {
+  0%, 86%, 100% { opacity: 1; }
+  88%, 94%      { opacity: 0.45; }
+  91%            { opacity: 0.9; }
+}
+
+#weather-bg-layer[data-weather="storm"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.18) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(79,70,229,0.08) 0%, transparent 50%);
+  animation: storm-bg-flash 4s ease-in-out infinite;
+}
+
+#weather-bg-layer[data-weather="storm"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(167,139,250,0.04) 0px, transparent 2px, transparent 60px
+  );
+  animation: bg-lightning-flicker 5s ease-in-out infinite 1s;
+}
+
+/* ── Sis ── */
+@keyframes fog-bg-drift {
+  0%, 100% { opacity: 0.08; transform: translateX(0); }
+  50%       { opacity: 0.14; transform: translateX(8px); }
+}
+
+#weather-bg-layer[data-weather="fog"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(107,114,128,0.15) 0%,
+    rgba(107,114,128,0.06) 40%,
+    transparent 70%
+  );
+  animation: fog-bg-drift 7s ease-in-out infinite;
+}
+
+#weather-bg-layer[data-weather="fog"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 30%,
+    rgba(107,114,128,0.08) 60%,
+    rgba(107,114,128,0.12) 100%
+  );
+  animation: fog-bg-drift 10s ease-in-out infinite 3s;
+}
+
 /* ─── Azaltılmış Hareket (Erişilebilirlik) ─── */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -139,4 +139,65 @@ function renderTempChart(times, temps, unit = 'celsius') {
 </svg>`;
 }
 
-export { renderTempChart };
+// ─────────────────────────────────────────────
+// Saatlik Hava Tablosu
+// ─────────────────────────────────────────────
+
+/**
+ * Şu andan itibaren 12 saatlik hava detay tablosu üretir.
+ * @param {string[]} times  - ISO saat dizisi (24 adet)
+ * @param {number[]} temps  - Sıcaklık (°C)
+ * @param {number[]} precip - Yağış olasılığı (%)
+ * @param {number[]} wind   - Rüzgar hızı (km/h)
+ * @param {'celsius'|'fahrenheit'} [unit='celsius']
+ * @returns {string} HTML string
+ */
+function renderHourlyTable(times, temps, precip, wind, unit = 'celsius') {
+  if (!times || !temps || times.length === 0) {
+    return '<div class="chart-empty">Saatlik veri yüklenemedi.</div>';
+  }
+
+  const nowHour    = new Date().getHours();
+  const displayUnit = unit === 'fahrenheit' ? '°F' : '°C';
+  const startIdx   = Math.min(nowHour, times.length - 1);
+  const endIdx     = Math.min(startIdx + 12, times.length);
+  const rows       = [];
+
+  for (let i = startIdx; i < endIdx; i++) {
+    const hour      = new Date(times[i]).getHours();
+    const temp      = unit === 'fahrenheit'
+      ? Math.round(temps[i] * 9 / 5 + 32)
+      : Math.round(temps[i]);
+    const precipVal = precip?.[i] ?? 0;
+    const windVal   = Math.round(wind?.[i] ?? 0);
+    const isNow     = i === startIdx;
+
+    rows.push(`
+      <div class="hourly-row${isNow ? ' now' : ''}">
+        <span class="hourly-time">${String(hour).padStart(2, '0')}:00</span>
+        <span class="hourly-temp">${temp}${displayUnit}</span>
+        <div class="hourly-precip-wrap" title="Yağış olasılığı: %${precipVal}">
+          <div class="hourly-precip-bar">
+            <div class="hourly-precip-fill" style="width:${precipVal}%"></div>
+          </div>
+          <span class="hourly-precip-pct">${precipVal > 0 ? '%' + precipVal : '—'}</span>
+        </div>
+        <span class="hourly-wind">${windVal} <span class="hourly-wind-unit">km/h</span></span>
+      </div>
+    `);
+  }
+
+  return `
+    <div class="hourly-table">
+      <div class="hourly-header">
+        <span>Saat</span>
+        <span>Sıcaklık</span>
+        <span>Yağış</span>
+        <span>Rüzgar</span>
+      </div>
+      ${rows.join('')}
+    </div>
+  `;
+}
+
+export { renderTempChart, renderHourlyTable };

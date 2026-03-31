@@ -2,26 +2,28 @@
 
 <br />
 
-<img src="icons/icon-192.png" alt="HavaPuls Logo" width="96" height="96" />
+<img src="icons/icon-192.png" alt="HavaPuls Logo" width="100" height="100" />
 
 <h1>HavaPuls</h1>
 
-<p><strong>Ailenin hava durumu nabzı — tüm şehirler tek ekranda</strong></p>
+<p><em>Ailenin hava durumu nabzı — tüm şehirler tek ekranda</em></p>
 
-[![Live Demo](https://img.shields.io/badge/🌐_Canlı_Demo-HavaPuls-3b82f6?style=for-the-badge)](https://alphyn12.github.io/havapuls)
-[![Version](https://img.shields.io/badge/Version-2.0-10b981?style=for-the-badge)](#)
-[![PWA Ready](https://img.shields.io/badge/PWA-Ready-6366f1?style=for-the-badge&logo=pwa)](https://alphyn12.github.io/havapuls)
+<br />
+
+[![Live Demo](https://img.shields.io/badge/🌐_Canlı_Demo-havapuls-3b82f6?style=for-the-badge)](https://alphyn12.github.io/havapuls)
+[![Version](https://img.shields.io/badge/Version-3.0-10b981?style=for-the-badge)](#)
+[![PWA](https://img.shields.io/badge/PWA-Ready-6366f1?style=for-the-badge&logo=pwa)](https://alphyn12.github.io/havapuls)
 [![Vanilla JS](https://img.shields.io/badge/Vanilla_JS-ES2022-f59e0b?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Gemini AI](https://img.shields.io/badge/Gemini_AI-3.1_Flash-8b5cf6?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
 [![License](https://img.shields.io/badge/License-MIT-94a3b8?style=for-the-badge)](LICENSE)
 
 <br />
 
-<img src="https://img.shields.io/badge/Open--Meteo-Free_Weather_API-0ea5e9?style=flat-square" />
-<img src="https://img.shields.io/badge/Offline--First-Service_Worker-10b981?style=flat-square" />
-<img src="https://img.shields.io/badge/Dark_%2F_Light_Mode-Supported-1e293b?style=flat-square" />
-<img src="https://img.shields.io/badge/No_Backend-localStorage-f97316?style=flat-square" />
-<img src="https://img.shields.io/badge/Canvas_API-Card_Sharing-ec4899?style=flat-square" />
+![Open-Meteo](https://img.shields.io/badge/Open--Meteo-Free_API-0ea5e9?style=flat-square)
+![Air Quality](https://img.shields.io/badge/Air_Quality-AQI_Index-10b981?style=flat-square)
+![Offline First](https://img.shields.io/badge/Offline--First-Service_Worker-6366f1?style=flat-square)
+![No Backend](https://img.shields.io/badge/No_Backend-localStorage-f97316?style=flat-square)
+![Dark / Light](https://img.shields.io/badge/Dark_%2F_Light-Mode-1e293b?style=flat-square)
 
 <br /><br />
 
@@ -29,75 +31,73 @@
 
 ---
 
-## Nedir?
+## Ne Yapar?
 
-**HavaPuls**, aynı çatı altında yaşamayan aile üyelerinin (anne, baba, kardeş, büyükanne…) bulunduğu şehirlerin **anlık hava durumunu tek ekranda** gösteren, **Gemini AI** destekli kişisel hava danışmanı PWA'dır.
+**HavaPuls**, aynı çatı altında yaşamayan aile üyelerinin (anne, baba, kardeş, büyükanne…) bulunduğu şehirlerin anlık hava durumunu **tek ekranda** gösteren, **Gemini AI** destekli kişisel hava danışmanıdır.
 
-Sabah işe çıkmadan önce annenin şehrinde kar mı var? Babanın şehrinde fırtına mı yaklaşıyor? Tek bakışta öğren, AI'dan kıyafet önerisi al, hava kartını paylaş.
+Sabah işe çıkmadan önce annenin şehrinde kar mı var? Babanın şehrinde hava kalitesi kötü mü? Rüzgar hangi yönden esiyor? Tek bakışta öğren, AI'dan kıyafet önerisi al, hava kartını paylaş.
 
-> Sıfır backend · Sıfır kayıt · Sıfır ücret
-
----
-
-## Ekran Görüntüleri
-
-<div align="center">
-
-| Ana Sayfa | Detay Görünümü | Grafik & AI | Ayarlar |
-|:---------:|:--------------:|:-----------:|:-------:|
-| Aile kartları, hava animasyonları | 5 günlük tahmin, metrikler, gündoğumu/batımı | 24s sıcaklık grafiği, kıyafet önerisi | Bildirimler, tema, API |
-
-> *Mobil öncelikli (375px → 768px) · Dark & Light mod*
-
-</div>
+> **Sıfır backend · Sıfır kayıt · Sıfır ücret**
 
 ---
 
 ## Özellikler
 
 ### Çekirdek
-| # | Özellik | Açıklama |
+| | Özellik | Açıklama |
 |---|---------|----------|
-| 🌡️ | **Anlık Hava** | Sıcaklık, hissedilen, nem, rüzgar (km/h), UV, basınç, görünürlük, bulutluluk |
-| 📅 | **5 Günlük Tahmin** | Günlük min/max, hava kodu, gündoğumu/batımı |
+| 🌡️ | **Anlık Hava** | Sıcaklık, hissedilen, nem, rüzgar, UV, basınç, görünürlük, bulutluluk |
+| 📅 | **5 Günlük Tahmin** | Günlük min/max, hava kodu, yağış bar chart |
 | 🌍 | **Çoklu Üye** | 2–4 aile üyesi, bağımsız şehirler, bağımsız hata yönetimi |
 | ⚡ | **Akıllı Önbellek** | Hava: 10–60dk TTL · Şehir: sonsuz · AI: 1 saat |
 | 📴 | **Offline-First** | Service Worker ile son veriler çevrimdışında gösterilir |
 | 📲 | **PWA** | Ana ekrana ekle, standalone modda çalış |
 | 🔒 | **Sıfır Backend** | Tüm veri localStorage'da, sunucu yok |
 
-### v2.0 Yenilikler
-| # | Özellik | Açıklama |
+### v3.0 — Yeni Özellikler
+| | Özellik | Açıklama |
 |---|---------|----------|
-| 🌗 | **Dark / Light Tema** | Header'da tek tıkla tema geçişi, tercih localStorage'a kaydedilir |
-| 🎴 | **Hava Animasyonlu Arka Plan** | Her karta özel gradient animasyon: güneş, gece, yağmur, kar, fırtına, sis… |
-| 🌙 | **Gece/Gündüz İkonu** | `is_day` bayrağına göre ay+yıldız veya güneş SVG ikonu |
-| ↕️ | **Sürükle-Bırak Sıralama** | Kartları mouse veya parmakla yeniden sırala, sıra kalıcı kaydedilir |
-| 🔔 | **Push Bildirimler** | Sabah 07:00 hava özeti + 10°C+ sıcaklık düşüşü giyinme uyarısı |
-| 📈 | **24 Saatlik Grafik** | SVG sıcaklık eğrisi, şu an göstergesi, min/max etiketleri |
-| 🧥 | **AI Kıyafet Önerisi** | Gemini AI ile hava & UV & rüzgara özel kıyafet listesi |
-| 🌅 | **Gündoğumu / Batımı** | Detay kartında gün uzunluğu ile birlikte gösterim |
-| 🗺️ | **Şehir Belirsizliği Çözücü** | "Saray" → Van mı, Tekirdağ mı? Seçim listesi ile kullanıcı belirler |
-| 🖼️ | **Kart Paylaşımı** | Canvas'ta PNG oluştur, `navigator.share()` veya indirme olarak paylaş |
+| 🌬️ | **Hava Kalitesi (AQI)** | European AQI badge — İyi / Makul / Orta / Kötü / Çok Kötü |
+| ⏱️ | **Saatlik Detay Tablosu** | Şu andan 12 saat ilerisi: sıcaklık + yağış olasılığı bar + rüzgar hızı |
+| 🧭 | **Rüzgar Yön Kadranı** | SVG kadran, 16 yön (K/KKD/KD…G), derece değeri ile birlikte |
+| 🌅 | **Güneş Takvimi** | Animasyonlu timeline — doğum/batım bandı, şu an çizgisi, gün uzunluğu |
+| 🌧️ | **Yağış Bar Chart** | 5 günlük tahminde yüksekliğe göre mini bar grafiği |
+| 🌡️ | **Hissedilen Karşılaştırma** | Gerçek ↑↓→ Hissedilen: renk kodlu ok + Türkçe açıklama |
+| 📌 | **Pin / Sabitleme** | Yıldız butonu ile önemli üye her zaman listenin en üstünde |
+| 🎨 | **Animasyonlu Arka Plan** | Hava kategorisine özel CSS arka plan: yağmur çizgileri, kar noktaları, güneş parıltısı, fırtına titremesi, sis kayması |
+
+### v2.0 — Önceki Özellikler
+| | Özellik | Açıklama |
+|---|---------|----------|
+| 🌗 | **Dark / Light Tema** | Header'da tek tıkla tema geçişi |
+| 🎴 | **Kart Arka Plan Animasyonları** | Her karta özel gradient: güneş, yağmur, kar, fırtına… |
+| 🌙 | **Gece/Gündüz İkonu** | `is_day` bayrağına göre ay+yıldız veya güneş SVG |
+| ↕️ | **Sürükle-Bırak Sıralama** | Mouse veya parmakla sırala, kalıcı kaydedilir |
+| 🔔 | **Push Bildirimler** | Sabah 07:00 özeti + 10°C+ sıcaklık düşüşü uyarısı |
+| 📈 | **24 Saatlik Grafik** | SVG sıcaklık eğrisi, şu an göstergesi, min/max |
+| 🧥 | **AI Kıyafet Önerisi** | Gemini AI ile hava+UV+rüzgara özel kıyafet listesi |
+| 🗺️ | **Şehir Belirsizliği Çözücü** | Aynı isimli şehirler için seçim listesi |
+| 🖼️ | **Kart Paylaşımı** | Canvas PNG + `navigator.share()` veya indirme |
 
 ---
 
 ## Teknoloji Yığını
 
 ```
-Arayüz        →  Vanilla HTML5 + CSS3 + JavaScript ES2022 Modules
-Hava Verisi   →  Open-Meteo API (ücretsiz, anonim, API key gerektirmez)
-Geocoding     →  Open-Meteo Geocoding API (şehir → koordinat + çoklu eşleşme)
-Hourly Veri   →  Open-Meteo Hourly API (24 saatlik sıcaklık)
-AI Öneriler   →  Google Gemini 3.1 Flash Lite (isteğe bağlı API key)
-Bildirimler   →  Web Notification API + setTimeout zamanlama
-Grafik        →  SVG (Catmull-Rom eğrisi, gradient fill)
-Paylaşım      →  Canvas 2D API + Web Share API
-Depolama      →  localStorage (üyeler, ayarlar, önbellek, tema)
-Güvenlik      →  XOR obfuscation + Base64 (API key koruması)
-PWA           →  Web App Manifest + Service Worker (cache-first + network-first)
-Font          →  Google Fonts — DM Sans + DM Mono
-Build         →  Yok. Doğrudan tarayıcıda çalışır.
+Arayüz          →  Vanilla HTML5 + CSS3 + JavaScript ES2022 Modules
+Hava Verisi     →  Open-Meteo Weather API (ücretsiz, anonim)
+Geocoding       →  Open-Meteo Geocoding API
+Saatlik Veri    →  Open-Meteo Hourly API (sıcaklık + yağış + rüzgar)
+Hava Kalitesi   →  Open-Meteo Air Quality API (European AQI)
+AI Öneriler     →  Google Gemini 3.1 Flash Lite (isteğe bağlı API key)
+Bildirimler     →  Web Notification API + setTimeout zamanlama
+Grafik          →  SVG (Catmull-Rom eğrisi, gradient fill)
+Paylaşım        →  Canvas 2D API + Web Share API
+Depolama        →  localStorage (üyeler, ayarlar, önbellek, tema)
+Güvenlik        →  XOR obfuscation + Base64 (API key koruması)
+PWA             →  Web App Manifest + Service Worker (cache-first + network-first)
+Font            →  Google Fonts — DM Sans + DM Mono
+Build           →  Yok. Doğrudan tarayıcıda çalışır.
 ```
 
 ---
@@ -108,25 +108,24 @@ Build         →  Yok. Doğrudan tarayıcıda çalışır.
 HavaPuls/
 ├── index.html                  # Tek sayfa — 3 view (home/detail/settings) + modal
 ├── manifest.json               # PWA manifest
-├── sw.js                       # Service Worker (cache-first + network-first, v2)
+├── sw.js                       # Service Worker (cache-first + network-first)
 │
 ├── styles/
 │   ├── main.css                # Design tokens + bileşenler + dark/light tema
-│   └── animations.css          # Hava ikonu, view geçişi, drag, wallpaper animasyonları
+│   └── animations.css          # İkon, view, wallpaper ve arka plan animasyonları
 │
 ├── js/
 │   ├── app.js                  # State, router, render, event handler, drag-drop
-│   ├── api.js                  # Open-Meteo hava + geocoding + saatlik sıcaklık
-│   ├── ai.js                   # Gemini AI entegrasyonu + kıyafet önerisi + kural motoru
-│   ├── storage.js              # localStorage CRUD + tema + bildirim + güvenli API key
-│   ├── models.js               # WMO tablosu, kural motoru, JSDoc tipleri, sabitler
-│   ├── history.js              # 24 saatlik SVG sıcaklık grafiği
-│   ├── share.js                # Canvas PNG üretimi + Web Share API
-│   └── notifications.js        # Sabah bildirimi + giyinme uyarısı zamanlama
+│   ├── api.js                  # Open-Meteo: hava + geocoding + saatlik + AQI
+│   ├── ai.js                   # Gemini AI + kıyafet önerisi + kural motoru
+│   ├── storage.js              # localStorage CRUD + güvenli API key yönetimi
+│   ├── models.js               # WMO tablosu, kural motoru, JSDoc tipleri
+│   ├── history.js              # 24s SVG grafik + 12s saatlik detay tablosu
+│   ├── share.js                # Canvas PNG + Web Share API
+│   └── notifications.js        # Sabah bildirimi + giyinme uyarısı
 │
 └── icons/
-    ├── generate-icons.html     # Canvas ile PWA icon üretici
-    └── icon-*.png              # 72 → 512px PNG ikonlar
+    └── icon-*.png              # 72 → 512px PWA ikonlar
 ```
 
 ### Veri Akışı
@@ -136,26 +135,23 @@ Kullanıcı → app.js (state + router)
                │
                ├── api.js ──────────────────► Open-Meteo Weather API
                │   geocodeCity()              └─ localStorage cache (TTL)
-               │   searchCities()   ─────────► Open-Meteo Geocoding API
-               │   fetchHourlyTemp()──────────► Open-Meteo Hourly API
+               │   fetchWeatherWithCache()
+               │   fetchHourlyTemperature()───► Hourly: sıcaklık + yağış + rüzgar
+               │   fetchAQI()  ───────────────► Air Quality API (European AQI)
                │
                ├── ai.js ───────────────────► Gemini 3.1 Flash Lite API
                │   getAIAdvice()              └─ localStorage cache (1s)
                │   getClothingAdvice()         └─ kural motoru fallback
                │
                ├── storage.js ──────────────► localStorage
-               │   (üyeler, ayarlar, tema,
-               │    API key, geocache, önbellekler)
                │
                ├── notifications.js ────────► Notification API
-               │   scheduleMorningNotif()     setTimeout → 07:00
-               │   checkDressingWarnings()    anında kontrol
                │
-               ├── history.js ──────────────► SVG string (DOM'a inject)
+               ├── history.js ──────────────► SVG string + Hourly HTML table
                │   renderTempChart()
+               │   renderHourlyTable()
                │
                └── share.js ────────────────► Canvas 2D → PNG → navigator.share()
-                   shareWeatherCard()                      └─ fallback: <a download>
 ```
 
 ---
@@ -164,7 +160,7 @@ Kullanıcı → app.js (state + router)
 
 ### Ön Koşullar
 - Modern tarayıcı (Chrome 103+, Firefox 100+, Safari 16+)
-- Python 3 **veya** Node.js (Service Worker için `localhost` gereklidir)
+- Python 3 veya Node.js (Service Worker için `localhost` gerekir)
 - [Google AI Studio](https://aistudio.google.com/apikey) ücretsiz API anahtarı *(isteğe bağlı)*
 
 ### Lokal Çalıştırma
@@ -183,14 +179,6 @@ npx serve .
 open http://localhost:8080
 ```
 
-### PWA İkonları
-
-```
-1. icons/generate-icons.html dosyasını tarayıcıda aç
-2. "Tüm İkonları İndir" butonuna bas
-3. İndirilen PNG'leri icons/ klasörüne kopyala
-```
-
 ---
 
 ## Kullanım
@@ -199,18 +187,19 @@ open http://localhost:8080
 Header'daki **`+`** butonuna bas → avatar, isim ve şehir gir → **Kaydet**.
 Şehir adı otomatik doğrulanır; birden fazla eşleşme varsa seçim listesi açılır.
 
+### Üyeyi Sabitle
+Kart üzerindeki **☆ yıldız** butonuna bas — üye her zaman listenin en üstünde görünür.
+
+### Hava Kalitesini Görüntüle
+Ana kart üzerindeki **AQI badge**'ini incele. Detay sayfasında saatlik tablo, rüzgar kadranı ve güneş takvimi otomatik yüklenir.
+
 ### Gemini AI'ı Aktifleştir
 **⚙️ Ayarlar** → *Gemini AI Anahtarı* → [Google AI Studio](https://aistudio.google.com/apikey)'dan aldığın ücretsiz anahtarı yapıştır → **Kaydet**.
 
 > API anahtarı girilmezse kural tabanlı yedek sistem otomatik devreye girer.
 
 ### Bildirimleri Aç
-**⚙️ Ayarlar** → *Bildirimler* → **Aç** → izin ver.
-- **Sabah Özeti** — her gün 07:00'de tüm üyelerin hava durumu
-- **Giyinme Uyarısı** — gün içi sıcaklık farkı ≥10°C olunca anlık bildirim
-
-### Kartı Paylaş
-Detay sayfasında sağ üst köşedeki **↗** butonuna bas → mobilde doğrudan paylaş, masaüstünde PNG indir.
+**⚙️ Ayarlar** → *Bildirimler* → **Aç** → tarayıcı izin isteği onaylanır.
 
 ---
 
@@ -223,14 +212,15 @@ Detay sayfasında sağ üst köşedeki **↗** butonuna bas → mobilde doğruda
 | Gemini API Key | — | Ayarlar ekranından girilir |
 | Max Üye | 4 | localStorage tabanlı sınır |
 | Tema | Dark | Dark / Light, localStorage'a kaydedilir |
-| Sabah Bildirimi | Açık | Uygulama açık olduğunda 07:00'de tetiklenir |
+| Pin | — | Üye başına tek tıkla sabitleme |
+| Sabah Bildirimi | Açık | Uygulama açıkken 07:00'de tetiklenir |
 | Giyinme Uyarısı | Açık | ≥10°C günlük sıcaklık farkında tetiklenir |
 
 ---
 
 ## Kural Tabanlı Yedek Sistem
 
-Gemini API anahtarı yoksa veya API başarısız olursa **11 koşullu** yerleşik motor devreye girer:
+Gemini API anahtarı yoksa veya API başarısız olursa **kural tabanlı** yerleşik motor devreye girer:
 
 | Koşul | Öneri |
 |-------|-------|
@@ -242,8 +232,7 @@ Gemini API anahtarı yoksa veya API başarısız olursa **11 koşullu** yerleşi
 | UV > 8 | ☀️ Güneş kremi ve şapka zorunlu |
 | Rüzgar > 50 km/h | 💨 Şemsiye açma, sağlam giysi |
 | Kar (WMO 71–86) | ❄️ Kaygan zemin, sağlam ayakkabı |
-| Sis (WMO 45–49) | 🌫️ Dikkatli sür, yavaş yürü |
-| Sıcaklık 27–34°C | 🌤️ Hafif ve açık renkli giysiler |
+| Sis (WMO 45–48) | 🌫️ Dikkatli sür, yavaş yürü |
 | 18–26°C, yağışsız | ✅ Harika bir gün, dışarı çık! |
 
 ---
@@ -257,32 +246,32 @@ Gemini API anahtarı hiçbir dosyaya yazılmaz. Kullanıcı ayarlar ekranından 
 ## Geliştirme Kararları
 
 <details>
-<summary><strong>Neden Vanilla JS? (Framework yok)</strong></summary>
+<summary><strong>Neden Vanilla JS?</strong></summary>
 
-Proje tek kullanıcılı, build tool'suz, doğrudan tarayıcıda çalışacak şekilde tasarlandı. React/Vue eklemenin getireceği bundle boyutu, hydration maliyeti ve bağımlılık yönetimi bu ölçekte anlamsız. ES2022 modülleri yeterince güçlü; `import/export` ile temiz bir mimari kuruldu.
+Proje tek kullanıcılı, build tool'suz, doğrudan tarayıcıda çalışacak şekilde tasarlandı. React/Vue eklemenin getireceği bundle boyutu, hydration maliyeti ve bağımlılık yönetimi bu ölçekte anlamsız. ES2022 modülleri yeterince güçlü.
 
 </details>
 
 <details>
 <summary><strong>Neden Open-Meteo?</strong></summary>
 
-Ücretsiz, anonim, API key gerektirmez. Ticari kullanım için bile dakikada 10.000 istek kotası var. WMO standart hava kodlarını (0–99) destekler, saatlik veri endpoint'i mevcut. Geocoding API'si de dahil olduğu için ikinci bir servis entegrasyonu gerekmez.
+Ücretsiz, anonim, API key gerektirmez. WMO standart hava kodlarını destekler. Hava kalitesi (AQI), saatlik veri, geocoding ve forecast tek ekosistemde. Ticari kullanım için bile yüksek istek kotası.
 
 </details>
 
 <details>
-<summary><strong>Neden localStorage? (Backend yok)</strong></summary>
+<summary><strong>Neden localStorage?</strong></summary>
 
-Uygulama tek kullanıcılı ve kişisel. Sunucu maliyeti, kimlik doğrulama sistemi ve API geliştirme bu senaryoda overkill. localStorage TTL tabanlı önbellek, sonsuz geo-cache ve güvenli API key saklama için yeterli. Veri tamamen kullanıcının cihazında kalır.
+Uygulama tek kullanıcılı ve kişisel. Sunucu maliyeti, kimlik doğrulama ve API geliştirme bu senaryoda overkill. Veri tamamen kullanıcının cihazında kalır.
 
 </details>
 
 <details>
 <summary><strong>Service Worker stratejisi</strong></summary>
 
-- **Statik dosyalar** (CSS, JS, manifest, fontlar): **Cache-First** — hızlı yükleme, ağ yoksa önbellekten sun
-- **API çağrıları** (hava durumu, geocoding, Gemini): **Network-First (5s timeout)** — taze veri öncelikli, ağ hatasında önbellekten sun
-- Eski veri sunulduğunda SW istemciye `STALE_DATA` mesajı gönderir → uygulama toast gösterir
+- **Statik dosyalar** (CSS, JS, manifest): **Cache-First** — hızlı yükleme
+- **API çağrıları** (hava, geocoding, AQI, Gemini): **Network-First (5s timeout)** — taze veri öncelikli, ağ hatasında önbellekten sun
+- Eski veri sunulduğunda SW istemciye `STALE_DATA` mesajı gönderir → toast gösterilir
 
 </details>
 
@@ -290,7 +279,7 @@ Uygulama tek kullanıcılı ve kişisel. Sunucu maliyeti, kimlik doğrulama sist
 
 ## Katkı
 
-Bu proje kişisel kullanım için geliştirilmiştir. Hata bildirimleri ve öneriler için [Issues](https://github.com/Alphyn12/havapuls/issues) kullanabilirsiniz.
+Bu proje kişisel kullanım için geliştirilmiştir. Hata bildirimleri ve öneriler için [Issues](https://github.com/Alphyn12/havapuls/issues) bölümünü kullanabilirsiniz.
 
 ---
 
@@ -306,6 +295,6 @@ Bu proje kişisel kullanım için geliştirilmiştir. Hata bildirimleri ve öner
 **AI:** [Google Gemini](https://ai.google.dev) &nbsp;·&nbsp;
 **Font:** [DM Sans & DM Mono](https://fonts.google.com)
 
-<sub>Sevgiyle yapıldı ☁️ · HavaPuls v2.0</sub>
+<sub>Sevgiyle yapıldı ☁️ · HavaPuls v3.0</sub>
 
 </div>

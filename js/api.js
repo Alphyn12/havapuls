@@ -19,6 +19,7 @@ import {
 
 const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const WEATHER_URL   = 'https://api.open-meteo.com/v1/forecast';
+const AQI_URL       = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 
 /** Anlık hava için istenen değişkenler */
 const CURRENT_VARS = [
@@ -383,17 +384,17 @@ function formatTemp(celsius, unit = 'celsius') {
 // ─────────────────────────────────────────────
 
 /**
- * Belirli koordinatlar için bugünün saatlik sıcaklık verisini çeker.
+ * Belirli koordinatlar için bugünün saatlik hava verisini çeker.
  * @param {number} lat
  * @param {number} lon
- * @returns {Promise<{ times: string[], temps: number[] }>}
+ * @returns {Promise<{ times: string[], temps: number[], precip: number[], wind: number[] }>}
  */
 async function fetchHourlyTemperature(lat, lon) {
   const params = new URLSearchParams({
-    latitude:     lat,
-    longitude:    lon,
-    hourly:       'temperature_2m',
-    timezone:     'auto',
+    latitude:      lat,
+    longitude:     lon,
+    hourly:        'temperature_2m,precipitation_probability,wind_speed_10m',
+    timezone:      'auto',
     forecast_days: '1',
   });
 
@@ -402,9 +403,62 @@ async function fetchHourlyTemperature(lat, lon) {
 
   const data = await response.json();
   return {
-    times: data.hourly.time,
-    temps: data.hourly.temperature_2m,
+    times:  data.hourly.time,
+    temps:  data.hourly.temperature_2m,
+    precip: data.hourly.precipitation_probability,
+    wind:   data.hourly.wind_speed_10m,
   };
+}
+
+// ─────────────────────────────────────────────
+// Hava Kalitesi API (AQI)
+// ─────────────────────────────────────────────
+
+/**
+ * Belirli koordinatlar için Avrupa Hava Kalitesi İndeksi'ni çeker.
+ * @param {number} lat
+ * @param {number} lon
+ * @returns {Promise<number|null>} AQI değeri (0-500) veya null
+ */
+async function fetchAQI(lat, lon) {
+  const params = new URLSearchParams({
+    latitude:  lat,
+    longitude: lon,
+    current:   'european_aqi',
+    timezone:  'auto',
+  });
+  const res = await fetch(`${AQI_URL}?${params}`, { signal: AbortSignal.timeout(6000) });
+  if (!res.ok) throw new Error(`Hava Kalitesi API hatası: ${res.status}`);
+  const data = await res.json();
+  return data.current?.european_aqi ?? null;
+}
+
+/**
+ * AQI değerine göre CSS sınıf adı döner.
+ * @param {number|null} aqi
+ * @returns {'good'|'fair'|'moderate'|'poor'|'very-poor'|'unknown'}
+ */
+function getAQICategory(aqi) {
+  if (aqi == null) return 'unknown';
+  if (aqi <= 20)   return 'good';
+  if (aqi <= 40)   return 'fair';
+  if (aqi <= 60)   return 'moderate';
+  if (aqi <= 80)   return 'poor';
+  return 'very-poor';
+}
+
+/**
+ * AQI değerine göre Türkçe etiket döner.
+ * @param {number|null} aqi
+ * @returns {string}
+ */
+function getAQILabel(aqi) {
+  if (aqi == null) return '—';
+  if (aqi <= 20)   return 'İyi';
+  if (aqi <= 40)   return 'Makul';
+  if (aqi <= 60)   return 'Orta';
+  if (aqi <= 80)   return 'Kötü';
+  return 'Çok Kötü';
 }
 
 export {
@@ -415,6 +469,9 @@ export {
   fetchWeatherWithCache,
   fetchAllWeather,
   fetchHourlyTemperature,
+  fetchAQI,
+  getAQICategory,
+  getAQILabel,
   getWeatherLabel,
   getWeatherCategory,
   formatTemp,

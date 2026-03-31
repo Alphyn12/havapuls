@@ -31,6 +31,7 @@ const STATIC_ASSETS = [
 const API_PATTERNS = [
   'api.open-meteo.com',
   'geocoding-api.open-meteo.com',
+  'air-quality-api.open-meteo.com',
   'generativelanguage.googleapis.com',
   'fonts.googleapis.com',
   'fonts.gstatic.com',

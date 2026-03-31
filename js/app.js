@@ -14,10 +14,11 @@ import {
 import {
   normalizeCity, geocodeCity, searchCities,
   fetchAllWeather, fetchHourlyTemperature,
+  fetchAQI, getAQICategory, getAQILabel,
   getWeatherLabel, formatTemp,
 } from './api.js';
 import { getAIAdvice, getClothingAdvice } from './ai.js';
-import { renderTempChart } from './history.js';
+import { renderTempChart, renderHourlyTable } from './history.js';
 import { shareWeatherCard } from './share.js';
 import {
   requestNotificationPermission, hasNotificationPermission,
@@ -233,10 +234,22 @@ function renderHome() {
     return;
   }
 
-  container.innerHTML = state.members
-    .sort((a, b) => a.order - b.order)
+  const sortedMembers = [...state.members].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return  1;
+    return a.order - b.order;
+  });
+
+  container.innerHTML = sortedMembers
     .map(member => renderMemberCard(member, settings))
     .join('');
+
+  // Animasyonlu arka planı güncelle (ilk pinned veya ilk üyeye göre)
+  const dominantMember = sortedMembers.find(m => state.weatherData[m.id]?.current);
+  if (dominantMember) {
+    const dwd = state.weatherData[dominantMember.id].current;
+    updateWeatherBackground(codeToIconCategory(dwd.weatherCode, dwd.isDay !== false));
+  }
 
   // "Aile üyesi ekle" butonu — max 4 üye
   if (state.members.length < 4) {
@@ -262,6 +275,24 @@ function renderHome() {
 function renderMemberCard(member, settings) {
   const wd = state.weatherData[member.id];
 
+  const headerActionsBtns = `
+    <div class="card-header-actions">
+      <button class="card-pin-btn${member.pinned ? ' pinned' : ''}"
+              data-pin-id="${member.id}"
+              aria-label="${member.pinned ? 'Sabitlemeyi kaldır' : 'Kartı sabitle'}"
+              title="${member.pinned ? 'Sabitlemeyi kaldır' : 'Sabitle'}"
+              tabindex="0">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="${member.pinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      </button>
+      <button class="card-edit-btn" data-edit-id="${member.id}" aria-label="${member.name} düzenle" tabindex="0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+        </svg>
+      </button>
+    </div>`;
+
   if (!wd) {
     // Yükleniyor durumu
     return `
@@ -274,11 +305,7 @@ function renderMemberCard(member, settings) {
               <div class="card-city">${escHtml(member.city)}</div>
             </div>
           </div>
-          <button class="card-edit-btn" data-edit-id="${member.id}" aria-label="${member.name} düzenle" tabindex="0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-              <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-            </svg>
-          </button>
+          ${headerActionsBtns}
         </div>
         <div class="card-loading">
           <div class="loading-dots" aria-label="Yükleniyor"><span></span><span></span><span></span></div>
@@ -300,11 +327,7 @@ function renderMemberCard(member, settings) {
               <div class="card-city">${escHtml(member.city)}</div>
             </div>
           </div>
-          <button class="card-edit-btn" data-edit-id="${member.id}" aria-label="${member.name} düzenle">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-              <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-            </svg>
-          </button>
+          ${headerActionsBtns}
         </div>
         <div class="card-error">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -352,11 +375,7 @@ function renderMemberCard(member, settings) {
             <div class="card-city">${escHtml(member.city)}</div>
           </div>
         </div>
-        <button class="card-edit-btn" data-edit-id="${member.id}" aria-label="${member.name} düzenle" tabindex="0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-            <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-          </svg>
-        </button>
+        ${headerActionsBtns}
       </div>
 
       <!-- Orta: hava -->
@@ -405,6 +424,10 @@ function renderMemberCard(member, settings) {
         </span>` : ''}
         ${todaySunrise ? `<span class="metric-chip" title="Gün doğumu">🌅 ${todaySunrise}</span>` : ''}
         ${todaySunset  ? `<span class="metric-chip" title="Gün batımı">🌇 ${todaySunset}</span>`  : ''}
+        ${wd.aqi != null ? `
+        <span class="metric-chip aqi-badge aqi-${getAQICategory(wd.aqi)}" title="Hava Kalitesi: ${getAQILabel(wd.aqi)}">
+          AQI ${wd.aqi} · ${getAQILabel(wd.aqi)}
+        </span>` : ''}
       </div>
 
       <!-- AI öneri chip -->
@@ -484,11 +507,24 @@ async function renderDetail(memberId) {
   const isDay    = current.isDay !== false;
   const iconCat  = codeToIconCategory(current.weatherCode, isDay);
 
+  // Hissedilen karşılaştırması
+  const feelsDiff  = current.apparentTemperature - current.temperature;
+  const feelsArrow = feelsDiff > 1 ? '↑' : feelsDiff < -1 ? '↓' : '→';
+  const feelsCls   = feelsDiff > 1 ? 'feels-warmer' : feelsDiff < -1 ? 'feels-colder' : 'feels-same';
+  const feelsLabel = feelsDiff > 1 ? 'Daha sıcak hissettiriyor' : feelsDiff < -1 ? 'Daha soğuk hissettiriyor' : 'Gerçek ile aynı';
+
   // Büyük hava
-  document.getElementById('detail-icon').innerHTML     = getWeatherSVG(iconCat, 80);
-  document.getElementById('detail-temp').textContent   = temp;
-  document.getElementById('detail-feels').textContent  = `Hissedilen: ${tempAppr}`;
-  document.getElementById('detail-desc').textContent   = desc;
+  document.getElementById('detail-icon').innerHTML   = getWeatherSVG(iconCat, 80);
+  document.getElementById('detail-temp').textContent = temp;
+  document.getElementById('detail-feels').innerHTML  = `
+    <div class="feels-comparison">
+      <span class="feels-real">${temp}</span>
+      <span class="feels-arrow ${feelsCls}" aria-hidden="true">${feelsArrow}</span>
+      <span class="feels-apparent">${tempAppr}</span>
+    </div>
+    <div class="feels-label ${feelsCls}">${feelsLabel}</div>
+  `;
+  document.getElementById('detail-desc').textContent = desc;
 
   // Metrik grid
   document.getElementById('detail-metrics').innerHTML = `
@@ -501,14 +537,20 @@ async function renderDetail(memberId) {
       </div>
       <div class="detail-metric-value">%${current.humidity}</div>
     </div>
-    <div class="detail-metric-card">
+    <div class="detail-metric-card detail-metric-wind" style="grid-column:span 2;">
       <div class="detail-metric-label">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
         </svg>
         Rüzgar
       </div>
-      <div class="detail-metric-value">${Math.round(current.windSpeed)} km/h</div>
+      <div class="wind-metric-layout">
+        ${renderWindCompass(current.windDirection)}
+        <div>
+          <div class="detail-metric-value">${Math.round(current.windSpeed)} km/h</div>
+          <div class="wind-direction-label">${getWindDirectionLabel(current.windDirection)} · ${Math.round(current.windDirection)}°</div>
+        </div>
+      </div>
     </div>
     <div class="detail-metric-card">
       <div class="detail-metric-label">
@@ -593,17 +635,38 @@ async function renderDetail(memberId) {
         <div class="forecast-day-icon">${getWeatherSVG(cat, 32)}</div>
         <div class="forecast-day-max">${maxTemp}</div>
         <div class="forecast-day-min">${minTemp}</div>
-        ${day.precipitationProbability > 0
-          ? `<div class="forecast-day-precip">%${day.precipitationProbability}</div>`
-          : ''}
+        <div class="forecast-precip-bar-wrap" title="Yağış: %${day.precipitationProbability}">
+          <div class="forecast-precip-bar">
+            <div class="forecast-precip-fill" style="height:${day.precipitationProbability}%;background:${
+              day.precipitationProbability > 60 ? 'var(--clr-accent)' :
+              day.precipitationProbability > 30 ? '#60a5fa' : 'var(--clr-border-2)'
+            };"></div>
+          </div>
+          ${day.precipitationProbability > 0
+            ? `<span class="forecast-precip-pct">%${day.precipitationProbability}</span>`
+            : ''}
+        </div>
       </div>
     `;
   }).join('');
 
+  // Güneş Takvimi
+  const sunSection = document.getElementById('detail-sun-section');
+  const sunTimeline = document.getElementById('detail-sun-timeline');
+  if (forecast[0]?.sunrise && sunSection && sunTimeline) {
+    sunTimeline.innerHTML = renderSunTimeline(forecast[0].sunrise, forecast[0].sunset);
+    sunSection.style.display = '';
+  } else if (sunSection) {
+    sunSection.style.display = 'none';
+  }
+
+  // Animasyonlu arka planı detay sayfasında da güncelle
+  updateWeatherBackground(iconCat);
+
   // AI Öneri Yükle
   await loadAIAdvice(memberId, current);
 
-  // 24 Saatlik Grafik Yükle (arka planda)
+  // 24 Saatlik Grafik + Saatlik Tablo Yükle (arka planda)
   loadTempHistory(memberId, member.latitude, member.longitude, settings.unit);
 
   // Kıyafet Önerisi Yükle
@@ -611,31 +674,35 @@ async function renderDetail(memberId) {
 }
 
 /**
- * 24 saatlik sıcaklık grafiğini yükler ve ilgili section'a yerleştirir.
+ * 24 saatlik sıcaklık grafiği + saatlik detay tablosunu yükler.
  * @param {string} memberId
  * @param {number} lat
  * @param {number} lon
  * @param {'celsius'|'fahrenheit'} unit
  */
 async function loadTempHistory(memberId, lat, lon, unit) {
-  const container = document.getElementById('detail-history-chart');
-  if (!container) return;
+  const chartContainer  = document.getElementById('detail-history-chart');
+  const tableContainer  = document.getElementById('detail-hourly-table');
+  if (!chartContainer) return;
 
-  container.innerHTML = `
+  const loadingHtml = `
     <div class="card-loading">
       <div class="loading-dots" aria-label="Yükleniyor"><span></span><span></span><span></span></div>
-      Grafik yükleniyor...
+      Yükleniyor...
     </div>`;
+  chartContainer.innerHTML = loadingHtml;
+  if (tableContainer) tableContainer.innerHTML = loadingHtml;
 
   try {
-    const { times, temps } = await fetchHourlyTemperature(lat, lon);
-    // Sadece bu üye hâlâ seçiliyse güncelle
+    const { times, temps, precip, wind } = await fetchHourlyTemperature(lat, lon);
     if (state.selectedMemberId !== memberId) return;
-    container.innerHTML = renderTempChart(times, temps, unit);
+    chartContainer.innerHTML = renderTempChart(times, temps, unit);
+    if (tableContainer) tableContainer.innerHTML = renderHourlyTable(times, temps, precip, wind, unit);
   } catch (err) {
     if (state.selectedMemberId !== memberId) return;
-    container.innerHTML = `<div class="chart-empty">Grafik yüklenemedi.</div>`;
-    console.error('[History] Grafik yüklenemedi:', err);
+    chartContainer.innerHTML = `<div class="chart-empty">Grafik yüklenemedi.</div>`;
+    if (tableContainer) tableContainer.innerHTML = `<div class="chart-empty">Saatlik veri yüklenemedi.</div>`;
+    console.error('[History] Grafik/tablo yüklenemedi:', err);
   }
 }
 
@@ -672,6 +739,119 @@ async function loadClothingAdvice(memberId, current) {
     if (container) container.textContent = '⚠️ Kıyafet önerisi alınamadı.';
     console.error('[Clothing] Öneri yüklenemedi:', err);
   }
+}
+
+// ─────────────────────────────────────────────
+// Rüzgar Yön Kadranı
+// ─────────────────────────────────────────────
+
+/**
+ * Derece değerinden kısa Türkçe yön etiketi döner.
+ * @param {number} degrees - Rüzgar yönü (0-360)
+ * @returns {string}
+ */
+function getWindDirectionLabel(degrees) {
+  const dirs = ['K', 'KKD', 'KD', 'DKD', 'D', 'DGD', 'GD', 'GGD', 'G', 'GGB', 'GB', 'BGB', 'B', 'KBG', 'KB', 'KKB'];
+  return dirs[Math.round((degrees ?? 0) / 22.5) % 16];
+}
+
+/**
+ * Rüzgar yönü için SVG kadranı üretir.
+ * @param {number} degrees
+ * @returns {string} HTML string
+ */
+function renderWindCompass(degrees) {
+  const deg   = degrees ?? 0;
+  const label = getWindDirectionLabel(deg);
+  return `
+    <div class="wind-compass" aria-label="Rüzgar yönü: ${label} (${Math.round(deg)}°)">
+      <svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true">
+        <circle cx="26" cy="26" r="22" fill="none" stroke="var(--clr-border-2)" stroke-width="1.5"/>
+        <text x="26" y="9"  text-anchor="middle" font-size="8" fill="var(--clr-text-3)" font-family="DM Sans,sans-serif" font-weight="600">K</text>
+        <text x="26" y="48" text-anchor="middle" font-size="8" fill="var(--clr-text-3)" font-family="DM Sans,sans-serif" font-weight="600">G</text>
+        <text x="7"  y="29" text-anchor="middle" font-size="8" fill="var(--clr-text-3)" font-family="DM Sans,sans-serif" font-weight="600">B</text>
+        <text x="46" y="29" text-anchor="middle" font-size="8" fill="var(--clr-text-3)" font-family="DM Sans,sans-serif" font-weight="600">D</text>
+        <g transform="rotate(${deg}, 26, 26)">
+          <polygon points="26,8 23,28 26,25 29,28" fill="var(--clr-accent)" opacity="0.95"/>
+          <polygon points="26,44 23,24 26,27 29,24" fill="var(--clr-border-2)" opacity="0.7"/>
+        </g>
+        <circle cx="26" cy="26" r="3.5" fill="var(--clr-accent)"/>
+      </svg>
+      <span class="wind-compass-label">${label}</span>
+    </div>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// Gün Doğumu / Batımı Takvimi
+// ─────────────────────────────────────────────
+
+/**
+ * Gün doğumu ve batımı için animasyonlu timeline üretir.
+ * @param {string} sunriseISO
+ * @param {string} sunsetISO
+ * @returns {string} HTML string
+ */
+function renderSunTimeline(sunriseISO, sunsetISO) {
+  const rise    = new Date(sunriseISO);
+  const set     = new Date(sunsetISO);
+  const now     = new Date();
+
+  const riseMin = rise.getHours() * 60 + rise.getMinutes();
+  const setMin  = set.getHours()  * 60 + set.getMinutes();
+  const nowMin  = now.getHours()  * 60 + now.getMinutes();
+
+  // Referans aralık: sabah 03:00 → gece 23:00 (20 saat = 1200 dakika)
+  const REF_START = 3  * 60;
+  const REF_END   = 23 * 60;
+  const REF_SPAN  = REF_END - REF_START;
+
+  const toPercent = (min) => Math.min(100, Math.max(0, ((min - REF_START) / REF_SPAN) * 100));
+
+  const risePct = toPercent(riseMin).toFixed(1);
+  const setPct  = toPercent(setMin).toFixed(1);
+  const nowPct  = toPercent(nowMin).toFixed(1);
+  const lightW  = (parseFloat(setPct) - parseFloat(risePct)).toFixed(1);
+
+  const riseStr = rise.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  const setStr  = set.toLocaleTimeString('tr-TR',  { hour: '2-digit', minute: '2-digit' });
+
+  // Gün uzunluğu
+  const dayMin  = setMin - riseMin;
+  const dayH    = Math.floor(dayMin / 60);
+  const dayM    = dayMin % 60;
+
+  const isLight = nowMin >= riseMin && nowMin <= setMin;
+
+  return `
+    <div class="sun-timeline" aria-label="Gün doğumu ${riseStr}, gün batımı ${setStr}">
+      <div class="sun-track">
+        <div class="sun-light-zone" style="left:${risePct}%;width:${lightW}%">
+          ${isLight ? '<div class="sun-orb"></div>' : ''}
+        </div>
+        <div class="sun-now-marker" style="left:${nowPct}%" title="Şu an"></div>
+      </div>
+      <div class="sun-labels">
+        <span>🌅 ${riseStr}</span>
+        <span class="sun-daylength">☀️ ${dayH}s ${dayM}dk</span>
+        <span>🌇 ${setStr}</span>
+      </div>
+    </div>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// Animasyonlu Arka Plan
+// ─────────────────────────────────────────────
+
+/**
+ * Hava kategorisine göre body arka plan katmanını günceller.
+ * @param {string} category - Hava kategorisi (clear, rain, snow, storm, fog, night, cloudy)
+ */
+function updateWeatherBackground(category) {
+  const layer = document.getElementById('weather-bg-layer');
+  if (!layer) return;
+  layer.dataset.weather = category || 'clear';
 }
 
 /**
@@ -1203,11 +1383,25 @@ async function loadAllData(showLoader = true) {
     const results = await fetchAllWeather(state.members);
 
     results.forEach(({ member, current, forecast, error }) => {
-      state.weatherData[member.id] = { current, forecast, error };
+      state.weatherData[member.id] = { current, forecast, error, aqi: null };
     });
 
     state.lastUpdate = Date.now();
     renderHome();
+
+    // AQI verisini arka planda çek (her üye için paralel)
+    results.forEach(({ member, current, error }) => {
+      if (!error && current) {
+        fetchAQI(member.latitude, member.longitude)
+          .then(aqi => {
+            if (state.weatherData[member.id]) {
+              state.weatherData[member.id].aqi = aqi;
+              if (state.currentView === 'home') renderHome();
+            }
+          })
+          .catch(() => {}); // AQI hatası diğer verileri etkilemesin
+      }
+    });
 
     // Ana sayfada AI chip'leri için arka planda önerileri çek
     results.forEach(({ member, current, error }) => {
@@ -1297,6 +1491,19 @@ function setupEventListeners() {
 
   // ── Kartlara Tıklama (Event Delegation) ──
   document.getElementById('members-list')?.addEventListener('click', (e) => {
+    // Pin butonu
+    const pinBtn = e.target.closest('[data-pin-id]');
+    if (pinBtn) {
+      e.stopPropagation();
+      const member = state.members.find(m => m.id === pinBtn.dataset.pinId);
+      if (!member) return;
+      updateMember(member.id, { pinned: !member.pinned });
+      state.members = getMembers();
+      renderHome();
+      showToast(member.pinned ? '📌 Sabitleme kaldırıldı' : '📌 Kart sabitlendi');
+      return;
+    }
+
     // Düzenle butonu
     const editBtn = e.target.closest('[data-edit-id]');
     if (editBtn) {

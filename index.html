@@ -33,6 +33,9 @@
 </head>
 <body>
 
+<!-- Animasyonlu Hava Arka Planı -->
+<div id="weather-bg-layer" aria-hidden="true"></div>
+
 <!-- Offline Banner -->
 <div id="offline-banner" class="offline-banner" role="alert" aria-live="polite">
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -152,6 +155,12 @@
       </div>
     </div>
 
+    <!-- Güneş Takvimi -->
+    <div class="detail-section" id="detail-sun-section" style="display:none;">
+      <div class="detail-section-title">Güneş Takvimi</div>
+      <div id="detail-sun-timeline" class="detail-sun-timeline-wrap"></div>
+    </div>
+
     <!-- 5 Günlük Tahmin -->
     <div class="detail-section">
       <div class="detail-section-title">5 Günlük Tahmin</div>
@@ -164,6 +173,14 @@
     <div class="detail-section">
       <div class="detail-section-title">Bugün — 24 Saatlik Sıcaklık</div>
       <div class="detail-history-chart" id="detail-history-chart">
+        <!-- JS ile doldurulur -->
+      </div>
+    </div>
+
+    <!-- Saatlik Detay Tablosu -->
+    <div class="detail-section">
+      <div class="detail-section-title">Saatlik Detay</div>
+      <div id="detail-hourly-table" class="detail-hourly-wrap">
         <!-- JS ile doldurulur -->
       </div>
     </div>

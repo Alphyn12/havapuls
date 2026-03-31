@@ -20,6 +20,7 @@
  * @property {string} avatar - Emoji avatar (örn: "👨")
  * @property {number} order - Sıralama indeksi
  * @property {string} createdAt - ISO 8601 oluşturma tarihi
+ * @property {boolean} [pinned] - Üst sıralamada sabitlendi mi?
  */
 
 /**
