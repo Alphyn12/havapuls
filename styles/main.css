@@ -440,6 +440,12 @@ body {
   color: var(--clr-danger);
 }
 
+/* Konfor İndeksi — Ana kart chip */
+.comfort-chip.excellent { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.3); color: #10b981; }
+.comfort-chip.good      { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3); color: #d97706; }
+.comfort-chip.moderate  { background: rgba(249, 115, 22, 0.12); border-color: rgba(249, 115, 22, 0.3); color: #f97316; }
+.comfort-chip.poor      { background: rgba(239, 68,  68,  0.12); border-color: rgba(239, 68,  68,  0.3); color: #ef4444; }
+
 /* Kart Detay Linki */
 .card-detail-link {
   display: flex;
@@ -1480,6 +1486,24 @@ body {
 .detail-metric-wind {
   padding: var(--sp-3) var(--sp-4);
 }
+
+/* Konfor İndeksi — Detay sayfası kartı */
+.comfort-level-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 3px;
+}
+
+.comfort-card.excellent { border-color: rgba(16, 185, 129, 0.4); }
+.comfort-card.excellent .comfort-level-label { color: #10b981; }
+.comfort-card.good      { border-color: rgba(245, 158, 11, 0.4); }
+.comfort-card.good      .comfort-level-label { color: #f59e0b; }
+.comfort-card.moderate  { border-color: rgba(249, 115, 22, 0.4); }
+.comfort-card.moderate  .comfort-level-label { color: #f97316; }
+.comfort-card.poor      { border-color: rgba(239, 68,  68,  0.4); }
+.comfort-card.poor      .comfort-level-label { color: #ef4444; }
 
 .wind-metric-layout {
   display: flex;

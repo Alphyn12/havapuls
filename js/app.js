@@ -210,6 +210,45 @@ function codeToIconCategory(code, isDay = true) {
 }
 
 // ─────────────────────────────────────────────
+// Konfor İndeksi
+// ─────────────────────────────────────────────
+
+/**
+ * Sıcaklık, nem, rüzgar ve UV'den 0-100 arası konfor skoru hesaplar.
+ * @param {import('./models.js').CurrentWeather} current
+ * @returns {number}
+ */
+function calcComfortScore(current) {
+  // Sıcaklık skoru (0-40): İdeal 20-22°C
+  const tempDiff  = Math.abs(current.temperature - 21);
+  const tempScore = Math.max(0, 40 - tempDiff * 2.5);
+
+  // Nem skoru (0-30): İdeal %40-60
+  const humDiff  = Math.abs(current.humidity - 50);
+  const humScore = Math.max(0, 30 - humDiff * 0.5);
+
+  // Rüzgar skoru (0-20): Sakin rüzgar = konforlu
+  const windScore = Math.max(0, 20 - current.windSpeed * 0.4);
+
+  // UV skoru (0-10): Düşük UV = daha rahat
+  const uvScore = Math.max(0, 10 - current.uvIndex * 1.5);
+
+  return Math.round(tempScore + humScore + windScore + uvScore);
+}
+
+/**
+ * Konfor skoruna göre seviye ve CSS sınıfı döner.
+ * @param {number} score
+ * @returns {{ label: string, cls: string }}
+ */
+function getComfortLevel(score) {
+  if (score >= 75) return { label: 'Mükemmel', cls: 'excellent' };
+  if (score >= 50) return { label: 'İyi',      cls: 'good'      };
+  if (score >= 25) return { label: 'Orta',     cls: 'moderate'  };
+  return                  { label: 'Düşük',    cls: 'poor'      };
+}
+
+// ─────────────────────────────────────────────
 // Ana Sayfa Render
 // ─────────────────────────────────────────────
 
@@ -346,10 +385,10 @@ function renderMemberCard(member, settings) {
   const iconCat = codeToIconCategory(current.weatherCode, isDay);
   const aiTip   = wd.aiAdvice;
 
-  // Gün doğumu/batımı (forecast[0]'dan al)
+  // Konfor İndeksi
   const forecast = wd.forecast || [];
-  const todaySunrise = forecast[0]?.sunrise ? new Date(forecast[0].sunrise).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : null;
-  const todaySunset  = forecast[0]?.sunset  ? new Date(forecast[0].sunset).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : null;
+  const comfortScore = calcComfortScore(current);
+  const comfortLevel = getComfortLevel(comfortScore);
 
   return `
     <div class="family-card weather-bg-${iconCat}"
@@ -412,6 +451,12 @@ function renderMemberCard(member, settings) {
           </svg>
           UV ${current.uvIndex}
         </span>
+        <span class="metric-chip comfort-chip comfort-${comfortLevel.cls}" title="Konfor İndeksi: ${comfortLevel.label}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+          </svg>
+          ${comfortScore}
+        </span>
         ${current.precipitationProbability > 0 ? `
         <span class="metric-chip" title="Yağış ihtimali">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -422,8 +467,6 @@ function renderMemberCard(member, settings) {
           </svg>
           %${current.precipitationProbability}
         </span>` : ''}
-        ${todaySunrise ? `<span class="metric-chip" title="Gün doğumu">🌅 ${todaySunrise}</span>` : ''}
-        ${todaySunset  ? `<span class="metric-chip" title="Gün batımı">🌇 ${todaySunset}</span>`  : ''}
         ${wd.aqi != null ? `
         <span class="metric-chip aqi-badge aqi-${getAQICategory(wd.aqi)}" title="Hava Kalitesi: ${getAQILabel(wd.aqi)}">
           AQI ${wd.aqi} · ${getAQILabel(wd.aqi)}
@@ -526,6 +569,10 @@ async function renderDetail(memberId) {
   `;
   document.getElementById('detail-desc').textContent = desc;
 
+  // Konfor İndeksi — detay sayfası için hesapla
+  const detailComfortScore = calcComfortScore(current);
+  const detailComfortLevel = getComfortLevel(detailComfortScore);
+
   // Metrik grid
   document.getElementById('detail-metrics').innerHTML = `
     <div class="detail-metric-card">
@@ -536,6 +583,16 @@ async function renderDetail(memberId) {
         Nem
       </div>
       <div class="detail-metric-value">%${current.humidity}</div>
+    </div>
+    <div class="detail-metric-card comfort-card comfort-${detailComfortLevel.cls}">
+      <div class="detail-metric-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+        </svg>
+        Konfor
+      </div>
+      <div class="detail-metric-value">${detailComfortScore}</div>
+      <div class="comfort-level-label">${detailComfortLevel.label}</div>
     </div>
     <div class="detail-metric-card detail-metric-wind" style="grid-column:span 2;">
       <div class="detail-metric-label">
