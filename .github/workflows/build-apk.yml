@@ -1,0 +1,65 @@
+name: Build HavaPuls APK
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodu İndir
+        uses: actions/checkout@v4
+
+      - name: Node.js Kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Java 17 Kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Android SDK Kur
+        uses: android-actions/setup-android@v3
+
+      - name: Android Build Tools Kur
+        run: sdkmanager "build-tools;34.0.0" "platforms;android-34"
+
+      - name: Bubblewrap CLI Kur
+        run: npm install -g @bubblewrap/cli
+
+      - name: Debug Keystore Oluştur
+        run: |
+          keytool -genkey -v \
+            -keystore android.keystore \
+            -alias android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=HavaPuls, O=HavaPuls, C=TR"
+
+      - name: APK Derle
+        run: |
+          bubblewrap build \
+            --skipPwaValidation \
+            --manifest twa-manifest.json
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: android
+          BUBBLEWRAP_KEY_PASSWORD: android
+
+      - name: APK Artifact Olarak Kaydet
+        uses: actions/upload-artifact@v4
+        with:
+          name: HavaPuls-debug-apk
+          path: |
+            app-release-signed.apk
+            *.apk
+          if-no-files-found: warn
+          retention-days: 30
